@@ -45,6 +45,9 @@ export class GameEngine {
     this.input.onKeyPress('j', () => this.battle.playerUseSkill(0));
     this.input.onKeyPress('k', () => this.battle.playerUseSkill(1));
     this.input.onKeyPress('l', () => this.battle.playerUseSkill(2));
+    // 闪身与替身：更接近手游的主动防守和位移节奏
+    this.input.onKeyPress('shift', () => this.battle.playerDash());
+    this.input.onKeyPress('q', () => this.battle.playerSubstitute());
     // 触屏/无障碍额外键位
     this.input.onKeyPress(' ', () => this.battle.playerBasicAttack());
   }

@@ -246,7 +246,7 @@ export default function Battle() {
     // 重新加载本关
     setResult(null);
     resolvedRef.current = false;
-    navigate(0);
+    navigate(`/battle/${level?.id ?? levelId}`, { replace: true });
   }, [navigate]);
 
   const handleNext = useCallback(() => {
@@ -308,7 +308,7 @@ export default function Battle() {
               {countdown}
             </div>
             <div style={{ marginTop: 12, color: '#cbd5e1', fontSize: 14 }}>
-              WASD 移动 · I 攻击 · J/K/L 技能
+              WASD 移动 · I 攻击 · J/K/L 技能 · Shift 闪身 · Q 替身
             </div>
             <div style={{ marginTop: 6, color: '#f59e0b', fontSize: 13, fontWeight: 700 }}>
               限时 {level.timeLimit} 秒 · 快速通关且少受伤才能拿高分
