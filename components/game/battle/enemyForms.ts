@@ -147,7 +147,53 @@ function register(id: string, fn: FormFn): void {
 }
 
 // ============================================================
-// 各算法造型（实现见下）
+// 新增算法造型：哈希桶、DAG、生成树、残量网络
+// ============================================================
+register('hash_table', (ctx, f) => {
+  const { cx, cy, R, t } = f;
+  stroke(ctx, f.color, bodyLine(f));
+  for (let i = -2; i <= 2; i++) {
+    const x = cx + i * R * 0.34;
+    ctx.fillStyle = withAlpha(f.color, i === 0 ? 0.9 : 0.42);
+    ctx.fillRect(x - R * 0.12, cy - R * 0.55, R * 0.24, R * 1.1);
+    ctx.strokeRect(x - R * 0.12, cy - R * 0.55, R * 0.24, R * 1.1);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = `${Math.max(10, R * 0.22)}px monospace`;
+    ctx.fillText(String((Math.floor(t * 3) + i + 7) % 10), x - R * 0.06, cy + R * 0.08);
+  }
+  drawEyes(ctx, f, cx, cy - R * 0.7, R * 0.1);
+});
+
+register('topological_sort', (ctx, f) => {
+  const { cx, cy, R, t, dir } = f;
+  const pts = [-1, 0, 1].map((i) => ({ x: cx + i * R * 0.62, y: cy + Math.sin(t * 2 + i) * R * 0.1 }));
+  stroke(ctx, withAlpha(f.color, 0.72), R * 0.1);
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y); ctx.stroke();
+  for (const p of pts) { ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(p.x, p.y, R * 0.25, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+  stroke(ctx, '#e2e8f0', R * 0.07); ctx.beginPath(); ctx.moveTo(cx - dir * R * 0.85, cy); ctx.lineTo(cx + dir * R * 0.85, cy); ctx.stroke();
+  drawEyes(ctx, f, cx, cy - R * 0.18, R * 0.1);
+});
+
+register('minimum_spanning_tree', (ctx, f) => {
+  const { cx, cy, R, t } = f;
+  const pts = [{ x: cx, y: cy - R * 0.65 }, { x: cx - R * 0.65, y: cy + R * 0.3 }, { x: cx + R * 0.65, y: cy + R * 0.3 }, { x: cx, y: cy + R * 0.75 }];
+  stroke(ctx, f.color, R * 0.12); ctx.beginPath();
+  for (const p of pts) { ctx.moveTo(cx, cy); ctx.lineTo(p.x, p.y); } ctx.stroke();
+  for (const p of pts) { ctx.fillStyle = withAlpha(f.color, 0.8); ctx.beginPath(); ctx.arc(p.x, p.y, R * 0.2 + Math.sin(t * 3) * 2, 0, Math.PI * 2); ctx.fill(); }
+  drawEyes(ctx, f, cx, cy - R * 0.2, R * 0.1);
+});
+
+register('max_flow', (ctx, f) => {
+  const { cx, cy, R, dir } = f;
+  stroke(ctx, f.color, R * 0.16);
+  for (let i = -1; i <= 1; i++) { const y = cy + i * R * 0.38; ctx.beginPath(); ctx.moveTo(cx - R * 0.8, y); ctx.lineTo(cx + R * 0.8, y); ctx.stroke(); }
+  ctx.fillStyle = '#e2e8f0'; ctx.font = `${Math.max(11, R * 0.24)}px monospace`; ctx.fillText('f/c', cx - R * 0.28, cy + R * 0.08);
+  stroke(ctx, '#e2e8f0', R * 0.06); ctx.beginPath(); ctx.moveTo(cx - dir * R * 0.7, cy - R * 0.85); ctx.lineTo(cx + dir * R * 0.7, cy - R * 0.85); ctx.stroke();
+  drawEyes(ctx, f, cx, cy - R * 0.45, R * 0.1);
+});
+
+// ============================================================
+// 各算法造型
 // ============================================================
 
 // —— 冒泡排序：一串上浮的气泡叠成的软体 ——

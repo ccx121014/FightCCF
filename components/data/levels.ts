@@ -4,9 +4,9 @@ import type { ElementType } from '@shared/constants';
 export const CHAPTERS: Chapter[] = [
   { id: 1, name: 'CSP-J', subtitle: '入门组', description: '算法之路的起点：排序、模拟与基础枚举。', element: 'water', levelCount: 6 },
   { id: 2, name: 'CSP-S', subtitle: '提高组', description: '进阶数据结构：栈、队列、二分与贪心。', element: 'wind', levelCount: 6 },
-  { id: 3, name: 'NOIP', subtitle: '联赛难度', description: '动态规划、图论遍历与分治思想。', element: 'nature', levelCount: 6 },
-  { id: 4, name: '省选', subtitle: '省队选拔', description: '高级数据结构：线段树、并查集、字符串。', element: 'earth', levelCount: 6 },
-  { id: 5, name: 'NOI', subtitle: '国赛巅峰', description: '网络流、FFT、高级图论与数学。', element: 'thunder', levelCount: 6 },
+  { id: 3, name: 'NOIP', subtitle: '联赛难度', description: '动态规划、图论遍历、拓扑排序与分治思想。', element: 'nature', levelCount: 6 },
+  { id: 4, name: '省选', subtitle: '省队选拔', description: '高级数据结构：线段树、并查集、字符串与最小生成树。', element: 'earth', levelCount: 6 },
+  { id: 5, name: 'NOI', subtitle: '国赛巅峰', description: '哈希、网络流、FFT、高级图论与数学。', element: 'thunder', levelCount: 6 },
   { id: 6, name: '传说级', subtitle: '算法之神', description: '后缀自动机、可持久化与各类黑科技的终极试炼。', element: 'dark', levelCount: 5 },
 ];
 
@@ -14,10 +14,10 @@ export const CHAPTERS: Chapter[] = [
 const CHAPTER_ENEMIES: Record<number, string[]> = {
   1: ['bubble_sort', 'binary_search', 'quick_sort'],
   2: ['quick_sort', 'greedy', 'union_find'],
-  3: ['dfs', 'bfs', 'dynamic_programming'],
-  4: ['segment_tree', 'union_find', 'trie'],
-  5: ['fft', 'kmp', 'dijkstra'],
-  6: ['suffix_automaton', 'fft', 'dynamic_programming'],
+  3: ['dfs', 'bfs', 'dynamic_programming', 'topological_sort'],
+  4: ['segment_tree', 'union_find', 'trie', 'minimum_spanning_tree'],
+  5: ['fft', 'kmp', 'dijkstra', 'hash_table'],
+  6: ['suffix_automaton', 'fft', 'dynamic_programming', 'max_flow'],
 };
 
 const CHAPTER_ELEMENT: Record<number, ElementType> = {
@@ -29,10 +29,10 @@ const DIFFICULTIES: Difficulty[] = ['easy', 'normal', 'hard', 'expert', 'legenda
 const LEVEL_NAMES: Record<number, string[]> = {
   1: ['数组的初啼', '相邻的交换', '折半的抉择', '基准的分割', '枚举的迷宫', 'BOSS · 排序之王'],
   2: ['单调的栈', '循环的队列', '贪心的诱惑', '二分答案', '前缀和之海', 'BOSS · 提高之门'],
-  3: ['背包问题', '最长上升', '深入迷雾', '层层水波', '分治之刃', 'BOSS · 联赛霸主'],
-  4: ['区间统领', '合并王国', '前缀森林', '树上漫步', '莫队离线', 'BOSS · 省选之巅'],
-  5: ['网络之流', '频域共振', '模式匹配', '最短征途', '数论秘境', 'BOSS · 国赛之神'],
-  6: ['自动机觉醒', '可持久之树', '后缀的低语', '时间的回廊', 'BOSS · 算法终焉'],
+  3: ['背包问题', '最长上升', 'DAG 依赖', '层层水波', '分治之刃', 'BOSS · 联赛霸主'],
+  4: ['区间统领', '合并王国', '前缀森林', '最小生成树', '莫队离线', 'BOSS · 省选之巅'],
+  5: ['哈希碰撞', '频域共振', '模式匹配', '最短征途', '数论秘境', 'BOSS · 国赛之神'],
+  6: ['自动机觉醒', '可持久之树', '残量网络', '最小割线', 'BOSS · 算法终焉'],
 };
 
 // 各关时间限制（秒）：随关卡推进而收紧或放宽，BOSS 给足时间。
@@ -82,10 +82,24 @@ function buildLevels(): Level[] {
           {
             characterId: enemies[(i - 1) % enemies.length],
             level: enemyLevel,
-            count: enemyCount,
+            count: isBoss ? 1 : 1,
             hpMultiplier: isBoss ? 2.5 : 1 + i * 0.08,
             attackMultiplier: isBoss ? 1.6 : 1 + i * 0.05,
           },
+          ...(isBoss ? [] : [{
+            characterId: enemies[i % enemies.length],
+            level: enemyLevel + 1,
+            count: enemyCount >= 2 ? 1 : 0,
+            hpMultiplier: 0.9 + i * 0.05,
+            attackMultiplier: 0.95 + i * 0.04,
+          }]),
+          ...(isBoss || enemyCount < 3 ? [] : [{
+            characterId: enemies[(i + 1) % enemies.length],
+            level: enemyLevel,
+            count: 1,
+            hpMultiplier: 0.78 + i * 0.04,
+            attackMultiplier: 0.82 + i * 0.03,
+          }]),
         ],
         rewards: {
           gold: 100 + baseLevel * 40 + (isBoss ? 500 : 0),
