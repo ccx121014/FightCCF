@@ -1,0 +1,280 @@
+:root {
+  /* 背景层次 */
+  --bg-0: #070a12;
+  --bg-1: #0b0f1a;
+  --bg-2: #111726;
+  --bg-3: #1a2234;
+  --bg-elev: #1e2740;
+
+  /* 描边 / 分割 */
+  --border: #26304a;
+  --border-soft: #1b2338;
+
+  /* 文字 */
+  --text: #e8ecf5;
+  --text-dim: #9aa6bf;
+  --text-mute: #5f6b85;
+
+  /* 主题强调色（火焰系：琥珀→玫红） */
+  --accent: #f59e0b;
+  --accent-2: #f43f5e;
+  --accent-grad: linear-gradient(135deg, #f59e0b 0%, #f43f5e 100%);
+  --accent-glow: rgba(245, 158, 11, 0.35);
+
+  /* 功能色 */
+  --hp: #ff5555;
+  --energy: #38bdf8;
+  --player: #4ade80;
+  --enemy: #ff5555;
+  --gold: #fbbf24;
+  --diamond: #38bdf8;
+  --success: #4ade80;
+  --danger: #f43f5e;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 0 24px var(--accent-glow);
+
+  --font: 'Segoe UI', system-ui, -apple-system, 'PingFang SC',
+    'Microsoft YaHei', sans-serif;
+
+  color-scheme: dark;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg-0);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* 全局氛围背景 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(1000px 600px at 80% -10%, rgba(244, 63, 94, 0.12), transparent 60%),
+    radial-gradient(900px 600px at 10% 110%, rgba(245, 158, 11, 0.1), transparent 55%),
+    radial-gradient(600px 400px at 50% 50%, rgba(56, 189, 248, 0.05), transparent 70%),
+    var(--bg-0);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input {
+  font-family: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-1);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-3);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}
+
+.mulerun-pvp-arena { max-width: 980px; margin: 0 auto; padding: 18px; background: var(--bg-1); color: var(--text); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
+.arena-topbar, .arena-hud, .arena-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.arena-topbar { padding: 10px 14px; font-weight: 800; }
+.arena-topbar strong { color: var(--accent); font-family: monospace; font-size: 20px; }
+.arena-stage { position: relative; min-height: 410px; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: linear-gradient(180deg, #12192c, #090c16); }
+.arena-grid { position: absolute; inset: 0; opacity: .32; background-image: linear-gradient(rgba(56,189,248,.13) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,.13) 1px, transparent 1px); background-size: 42px 42px; transform: perspective(380px) rotateX(52deg) scale(1.4); transform-origin: bottom; }
+.arena-fighter { position: absolute; width: 58px; height: 72px; display: grid; place-items: center; transform: translateX(-50%); transition: left .12s linear, bottom .12s ease; z-index: 2; }
+.arena-fighter::after { content: ''; position: absolute; bottom: -8px; width: 84px; height: 12px; border-radius: 50%; background: rgba(0,0,0,.45); filter: blur(4px); }
+.algorithm-core { position: relative; z-index: 1; width: 50px; height: 50px; display: grid; place-items: center; border: 3px solid currentColor; border-radius: 16px 4px 16px 4px; background: rgba(7,10,18,.88); font: 900 28px monospace; box-shadow: 0 0 22px currentColor; }
+.arena-fighter b { position: absolute; top: -18px; font: 700 11px monospace; color: var(--text); }
+.arena-fighter.player { color: var(--player); } .arena-fighter.enemy { color: var(--enemy); }
+.arena-hud { padding: 14px 2px 8px; } .arena-hud > div:first-child, .arena-hud > div:last-child { width: 34%; } .arena-hud span { display: block; font-size: 11px; margin-bottom: 5px; }
+.arena-hud progress { width: 100%; height: 9px; accent-color: var(--player); } .arena-hud > div:last-child progress { accent-color: var(--enemy); }
+.combo { color: var(--accent); font: 900 16px monospace; }
+.arena-controls { justify-content: center; flex-wrap: wrap; padding-top: 12px; } .arena-controls button { min-width: 62px; height: 44px; padding: 0 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-3); font-weight: 800; } .arena-controls .attack { background: var(--accent-grad); color: #190d03; } .arena-controls .skill { color: var(--energy); border-color: var(--energy); }
+.arena-error { color: var(--danger); font-size: 12px; padding: 8px 12px; }
+@media (max-width: 600px) { .mulerun-pvp-arena { padding: 10px; border-radius: 12px; } .arena-stage { min-height: 330px; } .arena-controls button { min-width: 52px; padding: 0 9px; } }
+
+
+/* ---------- 通用组件类 ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  white-space: nowrap;
+}
+.btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+.btn-primary {
+  background: var(--accent-grad);
+  color: #1a1206;
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.3);
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 8px 26px rgba(245, 158, 11, 0.45);
+}
+.btn-ghost {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.btn-ghost:hover {
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+.card {
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.panel {
+  background: var(--bg-1);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+}
+
+.grad-text {
+  background: var(--accent-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ---------- 动画 ---------- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.anim-in {
+  animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.loading-spinner {
+  width: 42px;
+  height: 42px;
+  border: 3px solid var(--bg-3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* 页面容器 */
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 22px 18px 96px;
+  animation: fadeIn 0.3s ease both;
+}
+
+.page-title {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.page-sub {
+  color: var(--text-dim);
+  font-size: 14px;
+  margin-bottom: 22px;
+}
+
+.grid {
+  display: grid;
+  gap: 14px;
+}
+
+.center-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
