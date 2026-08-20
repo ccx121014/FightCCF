@@ -317,12 +317,15 @@ export class BattleManager {
     }
     this.player.update(dt, { w: this.width, h: this.height });
 
-    // 敌人 AI
+    // 敌人 AI：多个敌人各自追击、普通攻击和算法技能
     for (const enemy of this.enemies) {
+      const previousSkill = enemy.activeSkill;
       const didAttack = enemy.think(dt, this.player, { w: this.width, h: this.height });
       enemy.update(dt, { w: this.width, h: this.height });
+      if (previousSkill && enemy.skillWindup <= 0 && this.player.isAlive) {
+        this.scheduleEnemySkillHit(enemy, previousSkill);
+      }
       if (didAttack && this.player.isAlive) {
-        // 敌人命中判定：攻击动画中点造成伤害
         this.scheduleEnemyHit(enemy);
       }
     }
@@ -344,11 +347,27 @@ export class BattleManager {
     }
   }
 
-  private enemyHitQueue: { enemy: Enemy; timer: number }[] = [];
+  private enemyHitQueue: { enemy: Enemy; timer: number; multiplier?: number }[] = [];
   private scheduledHits: { timer: number; fn: () => void }[] = [];
 
   private scheduleEnemyHit(enemy: Enemy): void {
     this.enemyHitQueue.push({ enemy, timer: 0.18 });
+  }
+
+  private scheduleEnemySkillHit(enemy: Enemy, skill: NonNullable<Enemy['activeSkill']>): void {
+    const distance = enemy.distanceTo(this.player);
+    if (distance > skill.range + 35) return;
+    const effectByKind: Record<string, HitEffect['type']> = {
+      'binary-search': 'arrow',
+      'hash-collision': 'split',
+      'dag-chain': 'chain',
+      'mst-bind': 'segment',
+      'max-flow-cut': 'pierce',
+      'segment-query': 'grid',
+    };
+    this.spawnEffect(this.player.pos.x, this.player.pos.y, effectByKind[skill.kind] ?? 'burst', enemy.color, 46);
+    this.enemyHitQueue.push({ enemy, timer: 0.08 });
+    (this.enemyHitQueue[this.enemyHitQueue.length - 1] as { enemy: Enemy; timer: number } & { multiplier?: number }).multiplier = skill.damageMultiplier;
   }
 
   private updateEffects(dt: number): void {
@@ -367,7 +386,7 @@ export class BattleManager {
       q.timer -= dt;
       if (q.timer <= 0) {
         if (q.enemy.isAlive && this.player.isAlive && q.enemy.distanceTo(this.player) <= q.enemy.attackRange + 20) {
-          this.applyDamage(q.enemy, this.player, 1.0, q.enemy.element, false);
+          this.applyDamage(q.enemy, this.player, q.multiplier ?? 1.0, q.enemy.element, false);
           this.spawnEffect(this.player.pos.x, this.player.pos.y, 'hit', '#ff5555', 24);
         }
         return false;

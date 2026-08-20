@@ -245,7 +245,7 @@ export function drawStickFigure(ctx: CanvasRenderingContext2D, unit: BattleUnit)
     bA2 = lerp(lerp(0.35, poseW[3], windE), poseS[3], extSnap);
   }
 
-  // 计算某个「命中进度」下前手末端位置（用于挥击拖影采样）
+  // 计算某个「命中���度」下前手末端位置（用于挥击拖影采样）
   const frontHandAt = (e: number): { x: number; y: number } => {
     const a1 = lerp(lerp(0.3, poseW[0], windE), poseS[0], e);
     const a2 = lerp(lerp(0.35, poseW[1], windE), poseS[1], e);
@@ -320,9 +320,15 @@ export function drawStickFigure(ctx: CanvasRenderingContext2D, unit: BattleUnit)
     ctx.restore();
   }
 
-  // 血条（敌人头顶）
+  // 敌人信息：血条、算法标签和技能蓄力提示
   if (!unit.isPlayer && unit.isAlive) {
     drawUnitHealthBar(ctx, unit);
+    ctx.save();
+    ctx.font = `${Math.max(9, radius * 0.28)}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = unit.currentPose === 'cast' || unit.animState === 'skill' ? '#fbbf24' : '#cbd5e1';
+    ctx.fillText(unit.animState === 'skill' ? 'ALGO CAST' : unit.characterId?.replaceAll('_', ' ') ?? 'ALGORITHM', unit.pos.x, unit.pos.y - radius - 24);
+    ctx.restore();
   }
 }
 
@@ -351,6 +357,15 @@ function drawPoseWeapon(
 
   switch (pose) {
     case 'slash': {
+      // 快排分区刃：以 pivot 标记切开区间
+      ctx.strokeStyle = color;
+      ctx.lineWidth = radius * 0.08;
+      ctx.setLineDash([radius * 0.18, radius * 0.12]);
+      ctx.beginPath();
+      ctx.moveTo(front.x - vy * radius * 0.5, front.y + vx * radius * 0.5);
+      ctx.lineTo(front.x + vx * radius * 2.1, front.y + vy * radius * 2.1);
+      ctx.stroke();
+      ctx.setLineDash([]);
       // 长剑：沿前臂延长
       const bladeLen = radius * 1.5;
       ctx.strokeStyle = '#e2e8f0';
@@ -369,6 +384,15 @@ function drawPoseWeapon(
       break;
     }
     case 'thrust': {
+      // DFS / 增广路探针：沿路径深入或贯穿残量网络
+      ctx.strokeStyle = color;
+      ctx.lineWidth = radius * 0.22;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.moveTo(front.x - vx * radius * 0.75, front.y - vy * radius * 0.75);
+      ctx.lineTo(front.x + vx * radius * 2.4, front.y + vy * radius * 2.4);
+      ctx.stroke();
       // 长枪：细长直刺
       const spearLen = radius * 2.0;
       ctx.strokeStyle = '#cbd5e1';
@@ -385,6 +409,13 @@ function drawPoseWeapon(
       break;
     }
     case 'shoot': {
+      // 二分查询器：折半指针与区间弦
+      ctx.strokeStyle = color;
+      ctx.lineWidth = radius * 0.07;
+      ctx.beginPath();
+      ctx.moveTo(front.x - vx * radius * 0.7, front.y - vy * radius * 0.7);
+      ctx.lineTo(front.x + vx * radius * 1.9, front.y + vy * radius * 1.9);
+      ctx.stroke();
       // 弓：以前手为弓身，蓄力时拉弦
       const bowR = radius * 0.9;
       const bx = front.x;

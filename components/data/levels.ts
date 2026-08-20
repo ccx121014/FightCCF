@@ -82,10 +82,24 @@ function buildLevels(): Level[] {
           {
             characterId: enemies[(i - 1) % enemies.length],
             level: enemyLevel,
-            count: enemyCount,
+            count: isBoss ? 1 : 1,
             hpMultiplier: isBoss ? 2.5 : 1 + i * 0.08,
             attackMultiplier: isBoss ? 1.6 : 1 + i * 0.05,
           },
+          ...(isBoss ? [] : [{
+            characterId: enemies[i % enemies.length],
+            level: enemyLevel + 1,
+            count: enemyCount >= 2 ? 1 : 0,
+            hpMultiplier: 0.9 + i * 0.05,
+            attackMultiplier: 0.95 + i * 0.04,
+          }]),
+          ...(isBoss || enemyCount < 3 ? [] : [{
+            characterId: enemies[(i + 1) % enemies.length],
+            level: enemyLevel,
+            count: 1,
+            hpMultiplier: 0.78 + i * 0.04,
+            attackMultiplier: 0.82 + i * 0.03,
+          }]),
         ],
         rewards: {
           gold: 100 + baseLevel * 40 + (isBoss ? 500 : 0),
