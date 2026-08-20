@@ -56,6 +56,50 @@ export interface AttackProfile {
 }
 
 export const ATTACK_PROFILES: Record<string, AttackProfile> = {
+  // 哈希表：桶定位、冲突处理与均摊查询
+  hash_table: {
+    pose: 'cast',
+    basic: { behavior: 'projectile', pose: 'cast', effect: 'split', range: 320, delay: 0.1 },
+    skills: [
+      { id: 'hash_bucket', name: '桶定位', description: '向目标投放索引标记，精准命中指定桶位', behavior: 'projectile', pose: 'cast', effect: 'split', energyCost: 18, cooldown: 3, damageMultiplier: 1.7, range: 350, aoe: false },
+      { id: 'hash_collision', name: '冲突处理', description: '多个哈希桶发生碰撞，分裂攻击附近目标', behavior: 'split', pose: 'cast', effect: 'split', energyCost: 34, cooldown: 6, damageMultiplier: 1.25, range: 230, aoe: true, hits: 3 },
+      { id: 'hash_rehash', name: '扩容重哈希', description: '重建整张哈希表，对全场桶位进行爆发查询', behavior: 'aoe', pose: 'cast', effect: 'burst', energyCost: 50, cooldown: 12, damageMultiplier: 3.0, range: 320, aoe: true },
+    ],
+  },
+
+  // 拓扑排序：入度归零、依赖展开
+  topological_sort: {
+    pose: 'cast',
+    basic: { behavior: 'projectile', pose: 'cast', effect: 'chain', range: 300, delay: 0.1 },
+    skills: [
+      { id: 'topo_zero_degree', name: '入度归零', description: '清除目标前置依赖，释放一条定向数据流', behavior: 'pierce', pose: 'cast', effect: 'chain', energyCost: 20, cooldown: 3, damageMultiplier: 1.8, range: 360, aoe: true },
+      { id: 'topo_queue', name: '队列展开', description: '按拓扑序依次激活节点，连锁命中多个目标', behavior: 'chain', pose: 'cast', effect: 'chain', energyCost: 34, cooldown: 6, damageMultiplier: 1.3, range: 280, aoe: true, hits: 4, delay: 0.12 },
+      { id: 'topo_dag', name: 'DAG 裁决', description: '展开有向无环图，对所有可达节点同时结算', behavior: 'aoe', pose: 'cast', effect: 'ring', energyCost: 50, cooldown: 12, damageMultiplier: 3.0, range: 340, aoe: true },
+    ],
+  },
+
+  // 最小生成树：选边、连通与代价控制
+  minimum_spanning_tree: {
+    pose: 'guard',
+    basic: { behavior: 'melee', pose: 'guard', effect: 'chain', range: 104 },
+    skills: [
+      { id: 'mst_choose_edge', name: '选取最小边', description: '选择当前代价最低的边，对最近目标造成重击', behavior: 'dash', pose: 'guard', effect: 'slash', energyCost: 18, cooldown: 3, damageMultiplier: 1.9, range: 150, aoe: false },
+      { id: 'mst_connect', name: '连通分量', description: '用边连接近处节点，把敌人聚合后同时处理', behavior: 'chain', pose: 'guard', effect: 'chain', energyCost: 34, cooldown: 6, damageMultiplier: 1.4, range: 240, aoe: true, hits: 3 },
+      { id: 'mst_total_weight', name: '总权值结算', description: '完成生成树构造，按全场连接数释放范围冲击', behavior: 'aoe', pose: 'guard', effect: 'burst', energyCost: 50, cooldown: 12, damageMultiplier: 3.1, range: 300, aoe: true, shield: 0.14 },
+    ],
+  },
+
+  // 网络流：容量、增广路与瓶颈
+  max_flow: {
+    pose: 'thrust',
+    basic: { behavior: 'pierce', pose: 'thrust', effect: 'pierce', range: 190 },
+    skills: [
+      { id: 'flow_augment', name: '增广路', description: '沿残量网络前进，贯穿路径上的目标', behavior: 'pierce', pose: 'thrust', effect: 'pierce', energyCost: 20, cooldown: 3, damageMultiplier: 1.9, range: 330, aoe: true },
+      { id: 'flow_bottleneck', name: '瓶颈容量', description: '锁定最窄通道，对目标区域进行压制', behavior: 'aoe', pose: 'guard', effect: 'segment', energyCost: 34, cooldown: 6, damageMultiplier: 1.55, range: 220, aoe: true, hits: 2, delay: 0.18 },
+      { id: 'flow_cut', name: '最小割', description: '切断关键边，对全场造成一次高额网络结算', behavior: 'split', pose: 'thrust', effect: 'burst', energyCost: 50, cooldown: 12, damageMultiplier: 3.25, range: 340, aoe: true, hits: 4 },
+    ],
+  },
+
   // 冒泡排序：相邻交换、逐位上浮 —— 越打越快的多段直拳，气泡上浮
   bubble_sort: {
     pose: 'punch',
