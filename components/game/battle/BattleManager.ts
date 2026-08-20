@@ -58,8 +58,6 @@ export class BattleManager {
   private shakeTimer = 0;
   private shakeIntensity = 0;
   private dashCooldown = 0;
-  private substitutionCooldown = 0;
-  private substitutionTimer = 0;
 
   constructor(setup: BattleSetup, playerElement: ElementType) {
     this.width = setup.width;
@@ -154,7 +152,7 @@ export class BattleManager {
     if (cost > 0) this.energy.consume(cost);
   }
 
-  /** 短距离闪身：类似手游中的位移/追击，避免纯站桩输出。 */
+  /** 算法位移：用于追击、拉开距离和取消站桩输出。 */
   playerDash(direction = this.player.facing === 'right' ? 1 : -1): void {
     if (this.phase !== 'playing' || !this.player.isAlive || this.dashCooldown > 0) return;
     this.dashCooldown = 0.8;
@@ -162,17 +160,6 @@ export class BattleManager {
     this.player.knockback.x = direction * 520;
     this.player.setAnimation('walk', 0.16);
     this.spawnEffect(this.player.pos.x, this.player.pos.y, 'ring', '#38bdf8', 34);
-  }
-
-  /** 替身术：受击窗口内按 Q 可脱离硬直并短暂无敌。 */
-  playerSubstitute(): void {
-    if (this.phase !== 'playing' || !this.player.isAlive || this.substitutionCooldown > 0) return;
-    this.substitutionCooldown = 6;
-    this.substitutionTimer = 0.6;
-    this.player.invincibleTimer = Math.max(this.player.invincibleTimer, 0.6);
-    this.player.knockback = { x: 0, y: 0 };
-    this.player.animState = 'idle';
-    this.spawnEffect(this.player.pos.x, this.player.pos.y, 'burst', '#cbd5e1', 46);
   }
 
   // ---- 伤害施加 ----
@@ -286,14 +273,11 @@ export class BattleManager {
   }
 
   // ---- 主更新 ----
-  update(dt: number, input: { move: { x: number; y: number }; dash?: boolean; substitute?: boolean }): void {
+  update(dt: number, input: { move: { x: number; y: number }; dash?: boolean }): void {
     if (this.phase !== 'playing') return;
 
     this.dashCooldown = Math.max(0, this.dashCooldown - dt);
-    this.substitutionCooldown = Math.max(0, this.substitutionCooldown - dt);
-    this.substitutionTimer = Math.max(0, this.substitutionTimer - dt);
     if (input.dash) this.playerDash(input.move.x || (this.player.facing === 'right' ? 1 : -1));
-    if (input.substitute) this.playerSubstitute();
 
     // 倒计时
     this.timeRemaining -= dt;
