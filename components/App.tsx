@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Layout } from './components/Layout';
+import { Layout } from './Layout';
 import { useAuthStore } from './stores/authStore';
 import { useCharacterStore } from './stores/characterStore';
 

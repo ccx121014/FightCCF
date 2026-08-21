@@ -104,6 +104,14 @@ export class BattleManager {
     return this.totalDamage;
   }
 
+  get algorithmScoreValue(): number {
+    return 0;
+  }
+
+  get combatState(): { chain: number; guarding: boolean; parrying: boolean } {
+    return { chain: this.combo.max, guarding: false, parrying: false };
+  }
+
   // ---- 玩家操作入口 ----
   private buildContext(caster: BattleUnit, targets: BattleUnit[]): SkillContext {
     const deal: SkillContext['dealDamage'] = (attacker, target, mult, element, isSkill) =>
