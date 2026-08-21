@@ -49,6 +49,7 @@ export default function Battle() {
   const [result, setResult] = useState<ResultData | null>(null);
   const [countdown, setCountdown] = useState(3);
   const [started, setStarted] = useState(false);
+  const [combatInfo, setCombatInfo] = useState({ chain: 0, guarding: false, parrying: false, algorithmScore: 0 });
 
   const level = levelId ? getLevel(levelId) : undefined;
   const playerChar = getCharacter(selectedId);
@@ -188,6 +189,7 @@ export default function Battle() {
       if (!isMountedRef.current || !engineRef.current) return;
       const b = engineRef.current.battle;
       const sm = b.skills;
+      setCombatInfo({ ...b.combatState, algorithmScore: b.algorithmScoreValue });
       setHud({
         playerName: b.player.name,
         playerHp: b.player.hp,
@@ -293,11 +295,18 @@ export default function Battle() {
 
       {/* HUD */}
       {started && hud && !result && (
-        <BattleHUD
-          state={hud}
-          onBasicTap={() => engineRef.current?.triggerBasic()}
-          onSkillTap={(i) => engineRef.current?.triggerSkill(i)}
-        />
+        <>
+          <BattleHUD
+            state={hud}
+            onBasicTap={() => engineRef.current?.triggerBasic()}
+            onSkillTap={(i) => engineRef.current?.triggerSkill(i)}
+          />
+          <div style={{ position: 'absolute', top: 52, left: 14, zIndex: 55, display: 'flex', gap: 8, alignItems: 'center', padding: '6px 10px', borderRadius: 8, background: 'rgba(8,15,30,0.78)', border: '1px solid rgba(96,165,250,0.45)', color: '#cbd5e1', font: '700 11px monospace' }}>
+            <span style={{ color: '#22d3ee' }}>ALGO SCORE {combatInfo.algorithmScore}</span>
+            <span style={{ color: combatInfo.chain >= 4 ? '#fbbf24' : '#94a3b8' }}>CHAIN {combatInfo.chain}/4</span>
+            {combatInfo.guarding && <span style={{ color: combatInfo.parrying ? '#67e8f9' : '#60a5fa' }}>{combatInfo.parrying ? 'PARITY WINDOW' : 'GUARD'}</span>}
+          </div>
+        </>
       )}
 
       {/* 倒计时 */}
@@ -308,7 +317,7 @@ export default function Battle() {
               {countdown}
             </div>
             <div style={{ marginTop: 12, color: '#cbd5e1', fontSize: 14 }}>
-              WASD 移动 · I 攻击 · J/K/L 算法技能 · Shift 位移突进
+              WASD 移动 · I 连段攻击 · J/K/L 算法技能 · Shift 位移 · U 格挡/反制
             </div>
             <div style={{ marginTop: 6, color: '#f59e0b', fontSize: 13, fontWeight: 700 }}>
               限时 {level.timeLimit} 秒 · 快速通关且少受伤才能拿高分

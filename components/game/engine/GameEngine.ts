@@ -47,7 +47,9 @@ export class GameEngine {
     this.input.onKeyPress('l', () => this.battle.playerUseSkill(2));
     // 算法位移：用于追击、拉开距离和取消站桩输出
     this.input.onKeyPress('shift', () => this.battle.playerDash());
+    this.input.onKeyPress('u', () => this.battle.playerGuard());
     // 触屏/无障碍额外键位
+
     this.input.onKeyPress(' ', () => this.battle.playerBasicAttack());
   }
 
@@ -64,6 +66,12 @@ export class GameEngine {
   /** 外部触发技能（供触屏按钮调用） */
   triggerBasic(): void {
     this.battle.playerBasicAttack();
+  }
+  triggerGuard(): void {
+    this.battle.playerGuard();
+  }
+  triggerDash(): void {
+    this.battle.playerDash();
   }
   triggerSkill(index: number): void {
     this.battle.playerUseSkill(index);

@@ -320,14 +320,14 @@ export function drawStickFigure(ctx: CanvasRenderingContext2D, unit: BattleUnit)
     ctx.restore();
   }
 
-  // 敌人信息：血条、算法标签和技能蓄力提示
+  // 敌人信息：只保留血条和算法名称，不显示施法提示
   if (!unit.isPlayer && unit.isAlive) {
     drawUnitHealthBar(ctx, unit);
     ctx.save();
     ctx.font = `${Math.max(9, radius * 0.28)}px monospace`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = unit.currentPose === 'cast' || unit.animState === 'skill' ? '#fbbf24' : '#cbd5e1';
-    ctx.fillText(unit.animState === 'skill' ? 'ALGO CAST' : unit.characterId?.replaceAll('_', ' ') ?? 'ALGORITHM', unit.pos.x, unit.pos.y - radius - 24);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(unit.characterId?.replaceAll('_', ' ') ?? 'ALGORITHM', unit.pos.x, unit.pos.y - radius - 24);
     ctx.restore();
   }
 }

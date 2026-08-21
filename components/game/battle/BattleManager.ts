@@ -58,6 +58,12 @@ export class BattleManager {
   private shakeTimer = 0;
   private shakeIntensity = 0;
   private dashCooldown = 0;
+  private basicChainStep = 0;
+  private basicChainTimer = 0;
+  private guardTimer = 0;
+  private parryTimer = 0;
+  private hitStopTimer = 0;
+  private algorithmScore = 0;
 
   constructor(setup: BattleSetup, playerElement: ElementType) {
     this.width = setup.width;
@@ -105,6 +111,14 @@ export class BattleManager {
     return this.totalDamage;
   }
 
+  get algorithmScoreValue(): number {
+    return this.algorithmScore;
+  }
+
+  get combatState(): { chain: number; guarding: boolean; parrying: boolean } {
+    return { chain: this.basicChainStep, guarding: this.guardTimer > 0, parrying: this.parryTimer > 0 };
+  }
+
   // ---- 玩家操作入口 ----
   private buildContext(caster: BattleUnit, targets: BattleUnit[]): SkillContext {
     const deal: SkillContext['dealDamage'] = (attacker, target, mult, element, isSkill) =>
@@ -140,9 +154,25 @@ export class BattleManager {
   }
 
   playerBasicAttack(): void {
-    if (this.phase !== 'playing' || !this.player.isAlive) return;
+    if (this.phase !== 'playing' || !this.player.isAlive || this.guardTimer > 0) return;
+    const now = performance.now() / 1000;
+    this.basicChainStep = this.basicChainTimer > now ? (this.basicChainStep % 4) + 1 : 1;
+    this.basicChainTimer = now + 0.72;
     const ctx = this.buildContext(this.player, this.aliveEnemies);
     this.skills.useBasic(ctx, this.energy.current);
+    this.player.setAnimation(this.basicChainStep === 4 ? 'thrust' : 'attack', 0.24);
+    this.algorithmScore += this.basicChainStep * 2;
+    if (this.basicChainStep === 4) {
+      this.addScreenShake(0.18, 7);
+      this.spawnEffect(this.player.pos.x + this.player.facingVector.x * 35, this.player.pos.y, 'pierce', '#fbbf24', 48, { angle: this.player.facingVector.y });
+    }
+  }
+
+  playerGuard(): void {
+    if (this.phase !== 'playing' || !this.player.isAlive) return;
+    this.guardTimer = Math.max(this.guardTimer, 0.45);
+    this.parryTimer = 0.16;
+    this.player.setAnimation('guard', 0.45);
   }
 
   playerUseSkill(index: number): void {
@@ -198,6 +228,20 @@ export class BattleManager {
       knockback = 0.5;
       stagger = true;
     }
+    if (!isPlayerAttack && this.guardTimer > 0) {
+      if (this.parryTimer > 0) {
+        this.algorithmScore += 12;
+        this.combo.hit();
+        this.spawnDamageNumber(attacker.pos.x, attacker.pos.y - attacker.radius - 12, 0, true, '#22d3ee', 'PARITY CHECK');
+        this.spawnEffect(attacker.pos.x, attacker.pos.y, 'ring', '#22d3ee', 42);
+        attacker.takeDamage(Math.max(1, Math.round(result.amount * 0.55)), this.player.pos.x, { knockback: 1.2, stagger: true });
+        this.addScreenShake(0.28, 11);
+        return;
+      }
+      this.spawnEffect(this.player.pos.x, this.player.pos.y, 'grid', '#60a5fa', 32);
+      return;
+    }
+
     const applied = target.takeDamage(result.amount, attacker.pos.x, { knockback, stagger });
     if (!applied) return;
 
@@ -206,8 +250,11 @@ export class BattleManager {
       this.energy.onHit();
       this.totalDamage += result.amount;
       this.addScreenShake(isSkill ? 0.25 : 0.12, isSkill ? 8 : 4);
+      this.hitStopTimer = Math.max(this.hitStopTimer, isSkill ? 0.075 : 0.035);
+      if (isSkill) this.algorithmScore += 5;
     } else {
       this.addScreenShake(0.15, 5);
+      this.hitStopTimer = Math.max(this.hitStopTimer, 0.045);
     }
 
     // 伤害数字
@@ -273,10 +320,19 @@ export class BattleManager {
   }
 
   // ---- 主更新 ----
-  update(dt: number, input: { move: { x: number; y: number }; dash?: boolean }): void {
+  update(dt: number, input: { move: { x: number; y: number }; dash?: boolean; guard?: boolean }): void {
     if (this.phase !== 'playing') return;
+    if (this.hitStopTimer > 0) {
+      this.hitStopTimer = Math.max(0, this.hitStopTimer - dt);
+      this.updateEffects(dt * 0.25);
+      return;
+    }
 
     this.dashCooldown = Math.max(0, this.dashCooldown - dt);
+    this.guardTimer = Math.max(0, this.guardTimer - dt);
+    this.parryTimer = Math.max(0, this.parryTimer - dt);
+    this.basicChainTimer = Math.max(0, this.basicChainTimer - dt);
+    if (input.guard) this.playerGuard();
     if (input.dash) this.playerDash(input.move.x || (this.player.facing === 'right' ? 1 : -1));
 
     // 倒计时
@@ -431,12 +487,13 @@ export class BattleManager {
     // 3) 连击分（0~20）：以 targetCombo 连击封顶
     const targetCombo = 12;
     const comboScore = 20 * Math.min(1, this.maxCombo / targetCombo);
+    const algorithmScore = Math.min(10, this.algorithmScore / 10);
 
-    const score = Math.round(timeScore + hpScore + comboScore);
+    const score = Math.round(timeScore + hpScore + comboScore + algorithmScore);
 
     // 评级门槛：S 需要三项都表现优异（硬门槛防止「苟过」拿 S）
     let rating: BattleRating;
-    if (score >= 85 && hpRatio >= 0.55 && t <= aTime && this.maxCombo >= 8) {
+    if (score >= 85 && hpRatio >= 0.55 && t <= aTime && this.maxCombo >= 8 && this.algorithmScore >= 20) {
       rating = 'S';
     } else if (score >= 65 && hpRatio >= 0.3) {
       rating = 'A';
