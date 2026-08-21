@@ -50,6 +50,8 @@ export class BattleUnit {
 
   // 挥拳视觉进度
   attackProgress = 0;
+  /** 动作连段编号：用于区分横扫、上挑、突刺等攻击轨迹 */
+  attackVariant = 0;
   /** 出招序号：每次发起攻击/技能自增，用于渲染层做「连招变化」（换手/勾拳/上挑） */
   attackSeq = 0;
 
@@ -96,6 +98,7 @@ export class BattleUnit {
     if (state === 'attack' || state === 'skill') {
       this.attackProgress = 0;
       this.attackSeq += 1;
+      this.attackVariant = this.attackSeq % 4;
     }
   }
 

@@ -4,9 +4,9 @@ import type { ElementType } from '@shared/constants';
 export const CHAPTERS: Chapter[] = [
   { id: 1, name: 'CSP-J', subtitle: '入门组', description: '算法之路的起点：排序、模拟与基础枚举。', element: 'water', levelCount: 6 },
   { id: 2, name: 'CSP-S', subtitle: '提高组', description: '进阶数据结构：栈、队列、二分与贪心。', element: 'wind', levelCount: 6 },
-  { id: 3, name: 'NOIP', subtitle: '联赛难度', description: '动态规划、图论遍历、拓扑排序与分治思想。', element: 'nature', levelCount: 6 },
-  { id: 4, name: '省选', subtitle: '省队选拔', description: '高级数据结构：线段树、并查集、字符串与最小生成树。', element: 'earth', levelCount: 6 },
-  { id: 5, name: 'NOI', subtitle: '国赛巅峰', description: '哈希、网络流、FFT、高级图论与数学。', element: 'thunder', levelCount: 6 },
+  { id: 3, name: 'NOIP', subtitle: '联赛难度', description: '动态规划、图论遍历、拓扑排序与分治思想；重点关注边界、状态转移和复杂度。', element: 'nature', levelCount: 6 },
+  { id: 4, name: '省选', subtitle: '省队选拔', description: '高级数据结构：线段树、并查集、字符串与最小生成树；考验区间维护和连通性证明。', element: 'earth', levelCount: 6 },
+  { id: 5, name: 'NOI', subtitle: '国赛巅峰', description: '哈希、网络流、FFT、高级图论与数学；关注瓶颈、反例和内存限制。', element: 'thunder', levelCount: 6 },
   { id: 6, name: '传说级', subtitle: '算法之神', description: '后缀自动机、可持久化与各类黑科技的终极试炼。', element: 'dark', levelCount: 5 },
 ];
 
