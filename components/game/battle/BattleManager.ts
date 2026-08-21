@@ -160,11 +160,13 @@ export class BattleManager {
     this.basicChainTimer = now + 0.72;
     const ctx = this.buildContext(this.player, this.aliveEnemies);
     this.skills.useBasic(ctx, this.energy.current);
-    this.player.setAnimation(this.basicChainStep === 4 ? 'thrust' : 'attack', 0.24);
+    this.player.setAnimation(this.basicChainStep === 4 ? 'skill' : 'attack', 0.24);
+    this.player.currentPose = this.basicChainStep === 4 ? 'thrust' : 'punch';
     this.algorithmScore += this.basicChainStep * 2;
     if (this.basicChainStep === 4) {
       this.addScreenShake(0.18, 7);
-      this.spawnEffect(this.player.pos.x + this.player.facingVector.x * 35, this.player.pos.y, 'pierce', '#fbbf24', 48, { angle: this.player.facingVector.y });
+      const direction = this.player.facing === 'right' ? 1 : -1;
+      this.spawnEffect(this.player.pos.x + direction * 35, this.player.pos.y, 'pierce', '#fbbf24', 48, { angle: direction });
     }
   }
 
@@ -172,7 +174,8 @@ export class BattleManager {
     if (this.phase !== 'playing' || !this.player.isAlive) return;
     this.guardTimer = Math.max(this.guardTimer, 0.45);
     this.parryTimer = 0.16;
-    this.player.setAnimation('guard', 0.45);
+    this.player.setAnimation('skill', 0.45);
+    this.player.currentPose = 'guard';
   }
 
   playerUseSkill(index: number): void {

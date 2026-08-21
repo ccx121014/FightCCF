@@ -146,7 +146,11 @@ export default function PVP() {
     if (mode === 'ranked') setRating((r) => Math.max(0, r + ratingChange));
     if (win) addCurrency({ honorPoints: 30, gold: 100 });
     const response = await fetch('/api/game/pvp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ victory: win, mode, ratingChange, combo: battleCombo, score: Math.min(100, (win ? 55 : 20) + battleCombo * 4 + Math.round(battleTime / 6)) }) }).catch(() => null);
-    if (response?.ok && mode === 'ranked') { const data = await response.json() as { ratingChange?: number }; if (typeof data.ratingChange === 'number') setRating((r) => Math.max(0, r - ratingChange + data.ratingChange)); }
+    if (response?.ok && mode === 'ranked') {
+      const data = await response.json() as { ratingChange?: number };
+      const serverRatingChange = data.ratingChange;
+      if (typeof serverRatingChange === 'number') setRating((r) => Math.max(0, r - ratingChange + serverRatingChange));
+    }
     setMatchResult({ win, ratingChange });
     setPhase('result');
   }
@@ -240,19 +244,6 @@ export default function PVP() {
       {phase === 'battle' && opponent && (
         <PvpArena />
       )}
-      {false && phase === 'battle' && opponent && (
-        <div className="card" style={{ padding: 24, animation: 'pop 0.3s ease' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, marginBottom: 18 }}><span>算法擂台 · 连招 {battleCombo}</span><span style={{ color: battleTime < 15 ? '#f43f5e' : 'var(--accent)' }}>{battleTime}s</span></div>
-          <BattleBar label="你" value={battleHp.mine} color="#4ade80" />
-          <BattleBar label={opponent.name} value={battleHp.opponent} color="#f43f5e" />
-          <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-            <button className="btn btn-primary" style={{ flex: 1, height: 52 }} onClick={() => performAttack('combo')}>连招攻击</button>
-            <button className="btn btn-ghost" style={{ flex: 1, height: 52 }} onClick={() => performAttack('skill')}>算法技能</button>
-          </div>
-          <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 12, textAlign: 'center' }}>实战按操作结算，不按战力直接判定 · 连击越高伤害越高</p>
-        </div>
-      )}
-
       {phase === 'result' && matchResult && (
         <div className="card" style={{ padding: 32, textAlign: 'center', animation: 'pop 0.4s ease' }}>
           <div style={{ fontSize: 56, marginBottom: 8 }}>{matchResult.win ? '🎉' : '💀'}</div>
