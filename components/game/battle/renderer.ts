@@ -324,7 +324,7 @@ export function drawStickFigure(ctx: CanvasRenderingContext2D, unit: BattleUnit)
   if (!unit.isPlayer && unit.isAlive) {
     drawUnitHealthBar(ctx, unit);
     ctx.save();
-    ctx.font = `${Math.max(9, radius * 0.28)}px monospace`;
+    ctx.font = `${Math.max(9, radius * 0.28)}px "Noto Sans CJK SC", "WenQuanYi Zen Hei", sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#cbd5e1';
     ctx.fillText(unit.characterId?.replaceAll('_', ' ') ?? 'ALGORITHM', unit.pos.x, unit.pos.y - radius - 24);

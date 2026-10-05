@@ -301,7 +301,7 @@ export default function Battle() {
             onBasicTap={() => engineRef.current?.triggerBasic()}
             onSkillTap={(i) => engineRef.current?.triggerSkill(i)}
           />
-          <div style={{ position: 'absolute', top: 52, left: 14, zIndex: 55, display: 'flex', gap: 8, alignItems: 'center', padding: '6px 10px', borderRadius: 8, background: 'rgba(8,15,30,0.78)', border: '1px solid rgba(96,165,250,0.45)', color: '#cbd5e1', font: '700 11px monospace' }}>
+          <div style={{ position: 'absolute', top: 52, left: 14, zIndex: 55, display: 'flex', gap: 8, alignItems: 'center', padding: '6px 10px', borderRadius: 8, background: 'rgba(8,15,30,0.78)', border: '1px solid rgba(96,165,250,0.45)', color: '#cbd5e1', font: '700 11px "Noto Sans CJK SC", "WenQuanYi Zen Hei", sans-serif' }}>
             <span style={{ color: '#22d3ee' }}>ALGO SCORE {combatInfo.algorithmScore}</span>
             <span style={{ color: combatInfo.chain >= 4 ? '#fbbf24' : '#94a3b8' }}>CHAIN {combatInfo.chain}/4</span>
             {combatInfo.guarding && <span style={{ color: combatInfo.parrying ? '#67e8f9' : '#60a5fa' }}>{combatInfo.parrying ? 'PARITY WINDOW' : 'GUARD'}</span>}
