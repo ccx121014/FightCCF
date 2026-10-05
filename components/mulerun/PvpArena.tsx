@@ -3,15 +3,25 @@
 import { useEffect, useRef, useState } from 'react'
 
 type Fighter = { id: string; x: number; y: number; hp: number; facing: 1 | -1; action: string; combo: number }
-type ArenaProps = { wsUrl?: string }
+type ArenaProps = {
+  wsUrl?: string
+  onBattleEnd?: (result: { win: boolean; reason: 'ko' | 'timeout' | 'disconnect' }) => void
+}
 
 const INITIAL_FIGHTERS: Fighter[] = [
   { id: 'player', x: 28, y: 0, hp: 100, facing: 1, action: 'idle', combo: 0 },
   { id: 'opponent', x: 72, y: 0, hp: 100, facing: -1, action: 'idle', combo: 0 },
 ]
 
-export function PvpArena({ wsUrl }: ArenaProps) {
+export function PvpArena({ wsUrl, onBattleEnd }: ArenaProps) {
   const socketRef = useRef<WebSocket | null>(null)
+  const endedRef = useRef(false)
+
+  function finishOnce(result: { win: boolean; reason: 'ko' | 'timeout' | 'disconnect' }) {
+    if (endedRef.current) return
+    endedRef.current = true
+    onBattleEnd?.(result)
+  }
   const [status, setStatus] = useState('本地竞技场 · 对手已就位')
   const [roomId, setRoomId] = useState('local-room')
   const [playerId, setPlayerId] = useState('player')
@@ -33,7 +43,10 @@ export function PvpArena({ wsUrl }: ArenaProps) {
           if (message.playerId) setPlayerId(message.playerId)
           if (message.roomId) setRoomId(message.roomId)
           if (message.type === 'state' && message.snapshot) setFighters(message.snapshot)
-          if (message.type === 'opponent_left') setStatus('对手已断线 · 等待重连')
+          if (message.type === 'opponent_left') {
+            setStatus('对手已断线 · 判定胜利')
+            finishOnce({ win: true, reason: 'disconnect' })
+          }
         } catch { setError('收到无法识别的对战数据') }
       }
       socket.onerror = () => { setOnline(false); setStatus('本地竞技场'); setError('实时服务暂不可用，已切换为本地演练') }
@@ -50,6 +63,7 @@ export function PvpArena({ wsUrl }: ArenaProps) {
   useEffect(() => {
     if (timer !== 0) return
     setStatus('时间到 · 本局结束')
+    finishOnce({ win: false, reason: 'timeout' })
   }, [timer])
 
   function updateLocal(action: string, direction = 0) {
@@ -62,7 +76,10 @@ export function PvpArena({ wsUrl }: ArenaProps) {
       const damage = action === 'skill' ? 18 : 9
       const nextPlayer: Fighter = { ...player, x: Math.max(8, Math.min(92, player.x + direction * 5)), action, combo: action === 'attack' ? player.combo + 1 : 0 }
       const nextOpponent: Fighter = { ...opponent, hp: canHit && (action === 'attack' || action === 'skill') ? Math.max(0, opponent.hp - damage) : opponent.hp, action: canHit ? 'hit' : 'idle' }
-      if (nextOpponent.hp === 0) setStatus('胜利 · 对手已被击败')
+      if (nextOpponent.hp === 0) {
+        setStatus('胜利 · 对手已被击败')
+        window.setTimeout(() => finishOnce({ win: true, reason: 'ko' }), 0)
+      }
       return [nextPlayer, nextOpponent]
     })
   }

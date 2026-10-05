@@ -38,6 +38,7 @@ export default function PVP() {
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
   const matchTimerRef = useRef<number>(0);
+  const finishLockRef = useRef(false);
 
   const rank = getRankByRating(rating);
 
@@ -121,6 +122,7 @@ export default function PVP() {
   }
 
   function startBattle() {
+    finishLockRef.current = false;
     setBattleHp({ mine: 100, opponent: 100 });
     setBattleTime(90);
     setBattleCombo(0);
@@ -140,7 +142,8 @@ export default function PVP() {
   }
 
   async function finishBattle(win: boolean) {
-    if (phase !== 'battle' || !opponent) return;
+    if (finishLockRef.current || phase !== 'battle' || !opponent) return
+    finishLockRef.current = true
     const higher = opponent.rating > rating ? RANK_RULES.higherRankBonus : 0;
     const ratingChange = win ? RANK_RULES.winBase + higher : mode === 'ranked' ? RANK_RULES.loseBase : 0;
     if (mode === 'ranked') setRating((r) => Math.max(0, r + ratingChange));
@@ -242,7 +245,7 @@ export default function PVP() {
       )}
 
       {phase === 'battle' && opponent && (
-        <PvpArena />
+        <PvpArena onBattleEnd={({ win }) => finishBattle(win)} />
       )}
       {phase === 'result' && matchResult && (
         <div className="card" style={{ padding: 32, textAlign: 'center', animation: 'pop 0.4s ease' }}>
