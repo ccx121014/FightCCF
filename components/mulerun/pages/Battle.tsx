@@ -167,19 +167,22 @@ export default function Battle() {
 
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    const dpr = window.devicePixelRatio || 1;
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
+    const w = Math.max(1, container.clientWidth);
+    const h = Math.max(1, container.clientHeight);
 
     const setup = buildSetup(w, h);
     if (!setup) return;
 
     const engine = new GameEngine(canvas, setup, playerChar.element);
+    engine.resize(w, h);
     engineRef.current = engine;
+
+    const handleResize = () => {
+      const nextWidth = Math.max(1, container.clientWidth);
+      const nextHeight = Math.max(1, container.clientHeight);
+      engine.resize(nextWidth, nextHeight);
+    };
+    window.addEventListener('resize', handleResize);
 
     engine.onBattleEnd((victory) => finishBattle(victory));
 
@@ -198,16 +201,26 @@ export default function Battle() {
         comboWindow: b.combo.windowRatio,
         timeRemaining: b.timeRemaining,
         skills: [0, 1, 2].map((i) => {
-          const sk = sm.getSkill(i)!;
-          return {
-            key: ['J', 'K', 'L'][i],
-            name: sk.config.name,
-            energyCost: sk.config.energyCost,
-            cooldownRatio: sk.cooldownRatio,
-            cooldownRemaining: sk.cooldownRemaining,
-            ready: sk.isReady,
-            color: playerChar.avatarColor,
-          };
+          const sk = sm.getSkill(i);
+          return sk
+            ? {
+                key: ['J', 'K', 'L'][i],
+                name: sk.config.name,
+                energyCost: sk.config.energyCost,
+                cooldownRatio: sk.cooldownRatio,
+                cooldownRemaining: sk.cooldownRemaining,
+                ready: sk.isReady,
+                color: playerChar.avatarColor,
+              }
+            : {
+                key: ['J', 'K', 'L'][i],
+                name: '未配置',
+                energyCost: 0,
+                cooldownRatio: 1,
+                cooldownRemaining: 0,
+                ready: false,
+                color: '#64748b',
+              };
         }),
       });
       rafRef.current = requestAnimationFrame(syncHud);
@@ -236,6 +249,7 @@ export default function Battle() {
       isMountedRef.current = false;
       clearInterval(timer);
       cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('resize', handleResize);
       engine.stop();
       engineRef.current = null;
     };

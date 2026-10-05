@@ -59,6 +59,15 @@ export class GameEngine {
     this.input.detach();
   }
 
+  resize(width: number, height: number): void {
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = Math.max(1, Math.round(width * dpr));
+    this.canvas.height = Math.max(1, Math.round(height * dpr));
+    this.canvas.style.width = `${width}px`;
+    this.canvas.style.height = `${height}px`;
+    this.battle.resize(width, height);
+  }
+
   /** 外部触发技能（供触屏按钮调用） */
   triggerBasic(): void {
     this.battle.playerBasicAttack();
