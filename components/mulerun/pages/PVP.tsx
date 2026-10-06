@@ -220,7 +220,7 @@ export default function PVP() {
           {/* 模式选择 */}
           <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
             <ModeButton active={mode === 'ranked'} onClick={() => setMode('ranked')} title="排位赛" desc="影响段位分" icon="⚔️" />
-            <ModeButton active={mode === 'casual'} onClick={() => setMode('casual')} title="休闲赛" desc="轻松对战" icon="🎮" />
+            <ModeButton active={mode === 'casual'} onClick={() => setMode('casual')} title="休���赛" desc="轻松对战" icon="🎮" />
           </div>
 
           {/* 出战角色 */}
@@ -236,6 +236,8 @@ export default function PVP() {
           <button className="btn btn-primary" style={{ width: '100%', height: 52, fontSize: 16 }} onClick={startQueue}>
             开始匹配
           </button>
+
+          <RiskPanel />
 
           <SpectatePanel />
 
@@ -336,6 +338,13 @@ export default function PVP() {
       )}
     </div>
   );
+}
+
+function RiskPanel() {
+  const [events, setEvents] = useState<Array<{ event: { id: string; eventType: string; severity: string; createdAt: string }; matchStatus?: string | null }>>([])
+  useEffect(() => { void fetch('/api/pvp/risk?limit=5', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ events?: typeof events }> : null).then((data) => { if (data?.events) setEvents(data.events) }).catch(() => undefined) }, [])
+  if (events.length === 0) return null
+  return <div className="panel" style={{ marginTop: 14, padding: 14, borderColor: '#f59e0b' }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}><strong>风控事件</strong><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>最近 5 条</span></div>{events.map(({ event, matchStatus }) => <div key={event.id} style={{ display: 'flex', gap: 8, padding: '7px 0', borderTop: '1px solid var(--border)', fontSize: 12 }}><span style={{ color: event.severity === 'high' ? '#fb7185' : '#f59e0b' }}>{event.severity}</span><span style={{ flex: 1 }}>{event.eventType}</span><span style={{ color: 'var(--text-mute)' }}>{matchStatus ?? '未知'}</span></div>)}</div>
 }
 
 function SpectatePanel() {

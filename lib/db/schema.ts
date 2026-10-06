@@ -1,4 +1,4 @@
-import { boolean, integer, index, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { boolean, integer, index, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const user = pgTable('user', {
   id: text('id').primaryKey(), name: text('name').notNull(), email: text('email').notNull().unique(), emailVerified: boolean('emailVerified').notNull().default(false), image: text('image'), createdAt: timestamp('createdAt').notNull().defaultNow(), updatedAt: timestamp('updatedAt').notNull().defaultNow(),
@@ -47,6 +47,9 @@ export const pvpTeamMembers = pgTable('pvp_team_members', {
 })
 export const pvpTeamInvites = pgTable('pvp_team_invites', {
   id: text('id').primaryKey(), teamId: text('team_id').notNull(), inviterId: text('inviter_id').notNull(), inviteeId: text('invitee_id').notNull(), status: text('status').notNull().default('pending'), createdAt: timestamp('created_at').notNull().defaultNow(), expiresAt: timestamp('expires_at').notNull(),
+})
+export const pvpRiskEvents = pgTable('pvp_risk_events', {
+  id: text('id').primaryKey(), matchId: text('match_id').notNull(), userId: text('user_id').notNull(), eventType: text('event_type').notNull(), severity: text('severity').notNull().default('low'), metadata: jsonb('metadata').notNull().default({}), createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 export const pvpReports = pgTable('pvp_reports', {
   id: text('id').primaryKey(), matchId: text('match_id').notNull(), reporterId: text('reporter_id').notNull(), reason: text('reason').notNull(), details: text('details').notNull().default(''), createdAt: timestamp('created_at').notNull().defaultNow(),
