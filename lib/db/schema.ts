@@ -36,6 +36,15 @@ export const pvpActions = pgTable('pvp_actions', {
 export const pvpRatings = pgTable('pvp_ratings', {
   userId: text('user_id').primaryKey(), rating: integer('rating').notNull().default(1200), wins: integer('wins').notNull().default(0), losses: integer('losses').notNull().default(0), season: text('season').notNull().default('S1'), updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
+export const pvpTeams = pgTable('pvp_teams', {
+  id: text('id').primaryKey(), name: text('name').notNull(), tag: text('tag').notNull(), ownerId: text('owner_id').notNull(), createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+export const pvpTeamMembers = pgTable('pvp_team_members', {
+  id: text('id').primaryKey(), teamId: text('team_id').notNull(), userId: text('user_id').notNull(), role: text('role').notNull().default('member'), createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+export const pvpTeamInvites = pgTable('pvp_team_invites', {
+  id: text('id').primaryKey(), teamId: text('team_id').notNull(), inviterId: text('inviter_id').notNull(), inviteeId: text('invitee_id').notNull(), status: text('status').notNull().default('pending'), createdAt: timestamp('created_at').notNull().defaultNow(), expiresAt: timestamp('expires_at').notNull(),
+})
 export const pvpReports = pgTable('pvp_reports', {
   id: text('id').primaryKey(), matchId: text('match_id').notNull(), reporterId: text('reporter_id').notNull(), reason: text('reason').notNull(), details: text('details').notNull().default(''), createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({ matchIdx: index('pvp_reports_match_idx').on(table.matchId), reporterIdx: index('pvp_reports_reporter_idx').on(table.reporterId) }))

@@ -237,6 +237,8 @@ export default function PVP() {
             开始匹配
           </button>
 
+          <TeamPanel />
+
           <div className="panel" style={{ marginTop: 14, padding: 14 }}>
             <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10 }}>好友房间</div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -278,7 +280,7 @@ export default function PVP() {
           <div className="loading-spinner" style={{ margin: '0 auto 18px' }} />
           <div style={{ fontSize: 18, fontWeight: 800 }}>正在匹配对手...</div>
           <div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 6 }}>
-            {mode === 'ranked' ? '排位赛' : '休闲赛'} · 已等待 {queueTime}s
+            {mode === 'ranked' ? '排位赛' : '休���赛'} · 已等待 {queueTime}s
           </div>
           <button className="btn btn-ghost" style={{ marginTop: 20 }} onClick={cancelQueue}>取消匹配</button>
         </div>
@@ -332,6 +334,18 @@ export default function PVP() {
       )}
     </div>
   );
+}
+
+function TeamPanel() {
+  const [name, setName] = useState('')
+  const [tag, setTag] = useState('')
+  const [message, setMessage] = useState('')
+  const createTeam = async () => {
+    const response = await fetch('/api/pvp/teams', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'create', name, tag }) })
+    const data = await response.json() as { error?: string; team?: { name: string; tag: string } }
+    setMessage(response.ok && data.team ? `战队 ${data.team.name} [${data.team.tag}] 已创建` : data.error ?? '创建失败')
+  }
+  return <div className="panel" style={{ marginTop: 14, padding: 14 }}><div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10 }}>战队 / 公会</div><div style={{ display: 'flex', gap: 8 }}><input aria-label="战队名称" value={name} onChange={(event) => setName(event.target.value)} placeholder="战队名称" maxLength={32} style={{ flex: 1, minWidth: 0 }} /><input aria-label="战队标签" value={tag} onChange={(event) => setTag(event.target.value.toUpperCase().slice(0, 5))} placeholder="TAG" maxLength={5} style={{ width: 76 }} /><button className="btn btn-ghost" disabled={!name.trim() || !tag.trim()} onClick={() => void createTeam()}>创建</button></div>{message && <div role="status" style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{message}</div>}</div>
 }
 
 function BattleBar({ label, value, color }: { label: string; value: number; color: string }) {
