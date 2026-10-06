@@ -38,6 +38,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   const attackLockUntil = useRef(0)
   const phaseTimers = useRef<number[]>([])
   const bufferedAttack = useRef<string | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
 
   function recordEvent(label: string) {
     setTimeline((events) => [`${new Date().toLocaleTimeString('zh-CN', { minute: '2-digit', second: '2-digit' })} · ${label}`, ...events].slice(0, 8))
@@ -48,12 +49,15 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     socketRef.current = socket
     socket.onopen = () => { setNetworkState('在线'); setStatus('匹配中 · 等待真人玩家') }
     socket.onmessage = (event) => {
-      let message: { type: string; playerId?: string; roomId?: string; snapshot?: Fighter[] }
+      let message: { type: string; playerId?: string; roomId?: string; snapshot?: Fighter[]; ack?: number }
       try { message = JSON.parse(event.data) as typeof message } catch { setError('收到无效的实时消息'); return }
       if (message.type === 'queued') setPlayerId(message.playerId)
       if (message.type === 'matched') { setRoomId(message.roomId); setPlayerId(message.playerId); setStatus('对手已连接 · 开始战斗'); if (message.snapshot) setFighters(message.snapshot) }
       if (message.type === 'state' && message.snapshot) {
-        const acknowledgedSeq = (message as typeof message & { ack?: number }).ack ?? inputSeq.current
+        const acknowledgedSeq = message.ack ?? inputSeq.current
+        const localFighter = message.snapshot.find((fighter) => fighter.id === playerId)
+        if (localFighter?.attackPhase) setAttackPhase(localFighter.attackPhase)
+        if (localFighter?.state === 'hurt' || localFighter?.state === 'down') playImpactSound('hurt')
         pendingInputs.current = pendingInputs.current.filter((input) => input.seq > acknowledgedSeq)
         setFighters((current) => {
           const serverSnapshot = message.snapshot!
@@ -78,7 +82,14 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
         setStatus(`连接已断开 · ${reconnectAttempts.current}/3 次重连准备中`)
       } else setStatus('连接已断开 · 可查看本地回放')
     }
-    return () => { socket.close(); reconnectAttempts.current = 0 }
+    return () => {
+      socket.close(); reconnectAttempts.current = 0
+      phaseTimers.current.forEach((timer) => window.clearTimeout(timer))
+      phaseTimers.current = []
+      if (comboTimer.current) window.clearTimeout(comboTimer.current)
+      audioContextRef.current?.close().catch(() => undefined)
+      audioContextRef.current = null
+    }
   }, [wsUrl])
 
   useEffect(() => {
@@ -86,10 +97,12 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     const stream = new EventSource(`/api/pvp/matches/stream?matchId=${encodeURIComponent(matchId)}`)
     streamRef.current = stream
     stream.addEventListener('snapshot', (event) => {
-      const data = JSON.parse((event as MessageEvent).data) as { match?: { playerOneHp: number; playerTwoHp: number; status: string } }
+      let data: { match?: { playerOneHp: number; playerTwoHp: number; status: string; fighters?: Fighter[] } }
+      try { data = JSON.parse((event as MessageEvent).data) as typeof data } catch { setError('实时快照格式无效'); return }
       if (!data.match) return
       setNetworkState('在线')
-      setFighters((current) => current.map((fighter) => fighter.id === playerId ? { ...fighter, hp: data.match!.playerOneHp } : { ...fighter, hp: data.match!.playerTwoHp }))
+      if (data.match.fighters?.length) setFighters(data.match.fighters)
+      else setFighters((current) => current.map((fighter) => fighter.id === playerId ? { ...fighter, hp: data.match!.playerOneHp } : { ...fighter, hp: data.match!.playerTwoHp }))
       if (data.match.status === 'finished') setStatus('对局已结束 · 已同步最终结果')
     })
     stream.onerror = () => { setNetworkState('离线'); setError('实时快照连接断开，正在使用轮询恢复') }
@@ -109,7 +122,10 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     if (typeof window === 'undefined') return
     const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     if (!AudioContextClass) return
-    const context = new AudioContextClass(); const oscillator = context.createOscillator(); const gain = context.createGain()
+    const context = audioContextRef.current ?? new AudioContextClass()
+    audioContextRef.current = context
+    if (context.state === 'suspended') void context.resume()
+    const oscillator = context.createOscillator(); const gain = context.createGain()
     oscillator.type = kind === 'skill' ? 'sawtooth' : 'square'; oscillator.frequency.value = kind === 'hit' ? 180 : kind === 'hurt' ? 90 : kind === 'skill' ? 420 : 240
     gain.gain.setValueAtTime(0.035, context.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + (kind === 'skill' ? 0.24 : 0.09)); oscillator.connect(gain); gain.connect(context.destination); oscillator.start(); oscillator.stop(context.currentTime + 0.25)
   }

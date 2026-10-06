@@ -60,7 +60,7 @@ export async function POST(request: Request) {
   const [lastUser] = await db.select({ createdAt: pvpActions.createdAt }).from(pvpActions).where(and(eq(pvpActions.matchId, match.id), eq(pvpActions.userId, userId))).orderBy(desc(pvpActions.seq)).limit(1)
   const [lastGlobal] = await db.select({ seq: pvpActions.seq }).from(pvpActions).where(eq(pvpActions.matchId, match.id)).orderBy(desc(pvpActions.seq)).limit(1)
   const rule = ATTACK_RULES[body.action]
-  if (rule && (typeof body.attackerX !== 'number' || typeof body.targetX !== 'number' || Math.abs(body.attackerX - body.targetX) > rule.reach)) return NextResponse.json({ error: '目标不在攻击判定盒内' }, { status: 409 })
+  if (rule && typeof body.attackerX === 'number' && typeof body.targetX === 'number' && Math.abs(body.attackerX - body.targetX) > rule.reach) return NextResponse.json({ error: '目标不在攻击判定盒内' }, { status: 409 })
   if (rule && lastUser?.createdAt && Date.now() - lastUser.createdAt.getTime() < rule.cooldown) return NextResponse.json({ error: '攻击仍在动作冷却中' }, { status: 429 })
   const seq = (lastGlobal?.seq ?? 0) + 1
   await db.insert(pvpActions).values({ id: crypto.randomUUID(), matchId: match.id, userId, action: body.action, seq })
