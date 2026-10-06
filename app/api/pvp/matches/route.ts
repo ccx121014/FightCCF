@@ -39,11 +39,15 @@ export async function POST(request: Request) {
   const [match] = await db.select().from(pvpMatches).where(eq(pvpMatches.id, body.matchId)).limit(1)
   if (!match) return NextResponse.json({ error: '对局不存在' }, { status: 404 })
   if (body.intent === 'join') {
+    if (match.playerOneId === userId) return NextResponse.json({ error: '不能加入自己创建的房间' }, { status: 409 })
+    if (match.status !== 'waiting') return NextResponse.json({ error: '房间不可加入' }, { status: 409 })
     if (match.playerTwoId && match.playerTwoId !== userId) return NextResponse.json({ error: '房间已满' }, { status: 409 })
     const [updated] = await db.update(pvpMatches).set({ playerTwoId: userId, status: 'ready', updatedAt: new Date() }).where(eq(pvpMatches.id, match.id)).returning()
     return NextResponse.json({ match: updated })
   }
   if (match.playerOneId !== userId && match.playerTwoId !== userId) return NextResponse.json({ error: '无权操作' }, { status: 403 })
+  if (match.status === 'finished') return NextResponse.json({ error: '对局已结束' }, { status: 409 })
+  if (body.action === 'ready' && match.playerTwoId && match.status === 'ready') return NextResponse.json({ match, serverTime: Date.now() })
   if (!body.action || !actions.has(body.action)) return NextResponse.json({ error: '无效操作' }, { status: 400 })
   const [last] = await db.select({ seq: pvpActions.seq }).from(pvpActions).where(eq(pvpActions.matchId, match.id)).orderBy(desc(pvpActions.seq)).limit(1)
   const seq = (last?.seq ?? 0) + 1

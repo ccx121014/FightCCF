@@ -15,6 +15,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   const [error, setError] = useState('')
   const [timeline, setTimeline] = useState<string[]>([])
   const [networkState, setNetworkState] = useState<'连接中' | '在线' | '离线'>('连接中')
+  const [reportSent, setReportSent] = useState(false)
 
   function recordEvent(label: string) {
     setTimeline((events) => [`${new Date().toLocaleTimeString('zh-CN', { minute: '2-digit', second: '2-digit' })} · ${label}`, ...events].slice(0, 8))
@@ -58,6 +59,6 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     <div className="arena-hud"><div><span>我方</span><progress value={mine?.hp ?? 100} max="100" /></div><div className="combo">COMBO {mine?.combo ?? 0}</div><div><span>对手</span><progress value={opponent?.hp ?? 100} max="100" /></div></div>
     <div className="arena-controls"><button onClick={() => send('move', -1)}>←</button><button onClick={() => send('jump', 0, true)}>跳跃</button><button className="attack" onClick={() => send('attack')}>连击</button><button className="skill" onClick={() => send('skill')}>算法技</button><button onClick={() => send('move', 1)}>→</button></div>
     {timeline.length > 0 && <div style={{ marginTop: 12, padding: 10, border: '1px solid var(--border)', borderRadius: 10, fontSize: 11, color: 'var(--text-dim)' }}><strong>关键操作</strong>{timeline.map((event) => <div key={event}>{event}</div>)}</div>}
-    <button className="btn btn-ghost" style={{ width: '100%', marginTop: 10, color: '#fb7185' }} onClick={() => onReport?.('作弊')}>举报对手</button>
+    <button className="btn btn-ghost" style={{ width: '100%', marginTop: 10, color: '#fb7185' }} disabled={reportSent} onClick={() => { onReport?.('作弊'); setReportSent(true) }}>{reportSent ? '举报已提交' : '举报对手'}</button>
   </section>
 }
