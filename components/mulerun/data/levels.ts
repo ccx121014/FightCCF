@@ -62,7 +62,7 @@ function buildLevels(): Level[] {
         : DIFFICULTIES[Math.min(Math.floor((chapter.id - 1) * 0.9), 4)];
       // 普通关卡随进度增加敌人数量（1~3）
       const enemyCount = isBoss ? 1 : Math.min(3, 1 + Math.floor((i - 1) / 2));
-      const timeLimit = timeLimitFor(chapter.id, i, isBoss, enemyCount);
+      const timeLimit = chapter.id === 1 && !isBoss ? 150 : timeLimitFor(chapter.id, i, isBoss, enemyCount);
       // 星级时间阈值由时间限制推导：S=快速通关，A=从容，B=险胜
       const starTimes: [number, number, number] = [
         Math.round(timeLimit * 0.4),
@@ -83,8 +83,8 @@ function buildLevels(): Level[] {
             characterId: enemies[(i - 1) % enemies.length],
             level: enemyLevel,
             count: enemyCount,
-            hpMultiplier: isBoss ? 2.5 : 1 + i * 0.08,
-            attackMultiplier: isBoss ? 1.6 : 1 + i * 0.05,
+            hpMultiplier: isBoss ? 2.5 : chapter.id === 1 ? 0.82 + i * 0.04 : 1 + i * 0.08,
+            attackMultiplier: isBoss ? 1.6 : chapter.id === 1 ? 0.72 + i * 0.03 : 1 + i * 0.05,
           },
         ],
         rewards: {

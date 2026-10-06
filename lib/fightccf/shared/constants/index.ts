@@ -24,9 +24,9 @@ export const BATTLE_CONFIG = {
   fps: 60,
   timeLimit: 120, // 秒
   maxEnergy: 100,
-  energyRegenPerSec: 2,
-  energyOnHit: 10,
-  comboWindow: 0.5, // 秒
+  energyRegenPerSec: 3,
+  energyOnHit: 12,
+  comboWindow: 0.75, // 秒
   invincibleFrame: 0.3, // 受伤后无敌时间
   minDamage: 1,
   defenseFactor: 0.5,
