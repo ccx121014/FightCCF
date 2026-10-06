@@ -36,7 +36,7 @@ export default function PVP() {
   const [battleCombo, setBattleCombo] = useState(0);
   const [roomCode, setRoomCode] = useState('等待创建');
   const [sessionRecord, setSessionRecord] = useState({ wins: 0, losses: 0, streak: 0 });
-  const [resultReason, setResultReason] = useState<'ko' | 'timeout' | 'disconnect' | null>(null);
+  const [resultReason, setResultReason] = useState<'ko' | 'timeout' | 'disconnect' | 'surrender' | null>(null);
   const [networkState, setNetworkState] = useState<{ label: string; latency: number | null }>({ label: '检测中', latency: null });
 
   const serviceRef = useRef<PVPService | null>(null);
@@ -171,7 +171,7 @@ export default function PVP() {
     if (nextOpponent === 0 || nextMine === 0) finishBattle(nextOpponent === 0);
   }
 
-  async function finishBattle(win: boolean, reason: 'ko' | 'timeout' | 'disconnect' = 'ko') {
+  async function finishBattle(win: boolean, reason: 'ko' | 'timeout' | 'disconnect' | 'surrender' = 'ko') {
     if (finishLockRef.current || phase !== 'battle' || !opponent) return
     finishLockRef.current = true
     setResultReason(reason)
@@ -290,7 +290,7 @@ export default function PVP() {
       )}
 
       {phase === 'battle' && opponent && (
-        <PvpArena onBattleEnd={({ win, reason }) => finishBattle(win, reason)} />
+        <PvpArena onBattleEnd={({ win, reason }) => finishBattle(win, reason)} onSurrender={() => finishBattle(false, 'surrender')} />
       )}
       {phase === 'result' && matchResult && (
         <div className="card" style={{ padding: 32, textAlign: 'center', animation: 'pop 0.4s ease' }}>
@@ -299,7 +299,7 @@ export default function PVP() {
             {matchResult.win ? '胜利' : '失败'}
           </h2>
           <div style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: 6 }}>
-            {resultReason === 'ko' ? '击败对手' : resultReason === 'disconnect' ? '对手断线判负' : '时间结束'} · 房间 {roomCode}
+            {resultReason === 'ko' ? '击败对手' : resultReason === 'disconnect' ? '对手断线判负' : resultReason === 'surrender' ? '主动投降' : '时间结束'} · 房间 {roomCode}
           </div>
           {mode === 'ranked' && (
             <div style={{ fontSize: 16, marginTop: 10, fontWeight: 800, color: matchResult.ratingChange >= 0 ? '#4ade80' : '#f43f5e' }}>

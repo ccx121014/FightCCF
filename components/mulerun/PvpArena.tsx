@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 type Fighter = { id: string; x: number; y: number; hp: number; facing: 1 | -1; action: string; combo: number }
 type ArenaProps = {
   wsUrl?: string
-  onBattleEnd?: (result: { win: boolean; reason: 'ko' | 'timeout' | 'disconnect' }) => void
+  onBattleEnd?: (result: { win: boolean; reason: 'ko' | 'timeout' | 'disconnect' | 'surrender' }) => void
+  onSurrender?: () => void
 }
 
 const INITIAL_FIGHTERS: Fighter[] = [
@@ -13,11 +14,11 @@ const INITIAL_FIGHTERS: Fighter[] = [
   { id: 'opponent', x: 72, y: 0, hp: 100, facing: -1, action: 'idle', combo: 0 },
 ]
 
-export function PvpArena({ wsUrl, onBattleEnd }: ArenaProps) {
+export function PvpArena({ wsUrl, onBattleEnd, onSurrender }: ArenaProps) {
   const socketRef = useRef<WebSocket | null>(null)
   const endedRef = useRef(false)
 
-  function finishOnce(result: { win: boolean; reason: 'ko' | 'timeout' | 'disconnect' }) {
+  function finishOnce(result: { win: boolean; reason: 'ko' | 'timeout' | 'disconnect' | 'surrender' }) {
     if (endedRef.current) return
     endedRef.current = true
     onBattleEnd?.(result)
@@ -50,7 +51,10 @@ export function PvpArena({ wsUrl, onBattleEnd }: ArenaProps) {
         } catch { setError('收到无法识别的对战数据') }
       }
       socket.onerror = () => { setOnline(false); setStatus('本地竞技场'); setError('实时服务暂不可用，已切换为本地演练') }
-      socket.onclose = () => setOnline(false)
+      socket.onclose = () => {
+        setOnline(false)
+        setStatus('连接已断开 · 可继续本地演练')
+      }
     } catch { setError('实时服务暂不可用，已切换为本地演练') }
     return () => socket?.close()
   }, [wsUrl])
@@ -104,5 +108,6 @@ export function PvpArena({ wsUrl, onBattleEnd }: ArenaProps) {
     </div>
     <div className="arena-hud"><div><span>我方</span><progress value={mine?.hp ?? 100} max="100" /></div><div className="combo">COMBO {mine?.combo ?? 0}</div><div><span>对手</span><progress value={opponent?.hp ?? 100} max="100" /></div></div>
     <div className="arena-controls"><button aria-label="向左移动" onClick={() => send('move', -1)}>←</button><button onClick={() => send('jump', 0, true)}>跳跃</button><button className="attack" onClick={() => send('attack')}>连击</button><button className="skill" onClick={() => send('skill')}>算法技</button><button aria-label="向右移动" onClick={() => send('move', 1)}>→</button></div>
+    <button className="btn btn-ghost" style={{ width: '100%', marginTop: 10, color: '#fb7185' }} onClick={() => { if (window.confirm('确认投降本局？投降将直接判负。')) onSurrender?.() }}>投降</button>
   </section>
 }

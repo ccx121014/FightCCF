@@ -100,6 +100,11 @@ export class PVPService {
     return { serverTime: data.serverTime, latency: Date.now() - startedAt };
   }
 
+  async surrenderAuthoritativeMatch(matchId: string): Promise<void> {
+    const response = await fetch('/api/pvp/matches', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'surrender', matchId }) });
+    if (!response.ok) throw new Error('投降请求失败');
+  }
+
   async submitAuthoritativeAction(matchId: string, action: string): Promise<void> {
     const response = await fetch('/api/pvp/matches', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'action', matchId, action }) });
     if (!response.ok) throw new Error('服务器拒绝了该操作');
