@@ -30,6 +30,9 @@ export const pvpFriendships = pgTable('pvp_friendships', {
 export const pvpInvites = pgTable('pvp_invites', {
   id: text('id').primaryKey(), matchId: text('match_id').notNull(), senderId: text('sender_id').notNull(), recipientId: text('recipient_id'), inviteCode: text('invite_code').notNull(), status: text('status').notNull().default('pending'), createdAt: timestamp('created_at').notNull().defaultNow(), expiresAt: timestamp('expires_at').notNull(),
 })
+export const pvpSpectators = pgTable('pvp_spectators', {
+  id: text('id').primaryKey(), matchId: text('match_id').notNull(), userId: text('user_id').notNull(), createdAt: timestamp('created_at').notNull().defaultNow(),
+})
 export const pvpActions = pgTable('pvp_actions', {
   id: text('id').primaryKey(), matchId: text('match_id').notNull(), userId: text('user_id').notNull(), action: text('action').notNull(), seq: integer('seq').notNull(), createdAt: timestamp('created_at').notNull().defaultNow(),
 })

@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const timeline = await db.select().from(pvpActions).where(eq(pvpActions.matchId, match.id)).orderBy(asc(pvpActions.seq))
     return NextResponse.json({ match, timeline, serverTime: Date.now() })
   }
-  const matches = await db.select({ id: pvpMatches.id, status: pvpMatches.status, createdAt: pvpMatches.createdAt }).from(pvpMatches).where(eq(pvpMatches.status, 'waiting')).orderBy(desc(pvpMatches.createdAt)).limit(20)
+  const matches = await db.select({ id: pvpMatches.id, status: pvpMatches.status, createdAt: pvpMatches.createdAt }).from(pvpMatches).where(sql`${pvpMatches.status} in ('waiting', 'ready', 'active')`).orderBy(desc(pvpMatches.createdAt)).limit(20)
   return NextResponse.json({ matches })
 }
 

@@ -237,6 +237,8 @@ export default function PVP() {
             开始匹配
           </button>
 
+          <SpectatePanel />
+
           <TeamPanel />
 
           <div className="panel" style={{ marginTop: 14, padding: 14 }}>
@@ -334,6 +336,26 @@ export default function PVP() {
       )}
     </div>
   );
+}
+
+function SpectatePanel() {
+  const [matches, setMatches] = useState<Array<{ id: string; status: string; createdAt: string }>>([])
+  const [watching, setWatching] = useState<string | null>(null)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    void fetch('/api/pvp/matches', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ matches?: typeof matches }> : null).then((data) => setMatches(data?.matches ?? [])).catch(() => undefined)
+  }, [])
+
+  const toggleWatch = async (matchId: string) => {
+    const intent = watching === matchId ? 'leave' : 'join'
+    const response = await fetch('/api/pvp/spectate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ matchId, intent }) })
+    const data = await response.json() as { error?: string; watching?: boolean }
+    if (!response.ok) { setMessage(data.error ?? '观战操作失败'); return }
+    setWatching(data.watching ? matchId : null); setMessage(data.watching ? '已进入观战席位，回放时间线将持续同步' : '已离开观战席位')
+  }
+
+  return <div className="panel" style={{ marginTop: 14, padding: 14 }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><strong>观战席</strong><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{matches.length} 场可观战</span></div>{matches.length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-mute)' }}>暂无进行中的对局</div> : matches.slice(0, 3).map((match) => <div key={match.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: '1px solid var(--border)' }}><span style={{ flex: 1, fontSize: 12 }}>对局 {match.id.slice(0, 8)} · {match.status === 'active' ? '进行中' : '等待中'}</span><button className="btn btn-ghost" onClick={() => void toggleWatch(match.id)}>{watching === match.id ? '离开' : '观战'}</button></div>)}{message && <div role="status" style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{message}</div>}</div>
 }
 
 function TeamPanel() {
