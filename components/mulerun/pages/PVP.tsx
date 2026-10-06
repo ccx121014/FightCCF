@@ -42,6 +42,7 @@ export default function PVP() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [seasonReward, setSeasonReward] = useState<{ eligible: boolean; status: string } | null>(null);
   const [rewardMessage, setRewardMessage] = useState('');
+  const [pendingInvites, setPendingInvites] = useState<Array<{ id: string; inviteCode: string; expiresAt: string }>>([]);
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
@@ -62,6 +63,21 @@ export default function PVP() {
       if (rewardData) setSeasonReward({ eligible: rewardData.eligible, status: rewardData.reward?.status ?? 'available' });
     }).catch(() => undefined);
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadInvites = async () => {
+      try {
+        const response = await fetch('/api/pvp/invites', { cache: 'no-store' });
+        if (!response.ok || cancelled) return;
+        const data = await response.json() as { invites?: Array<{ id: string; inviteCode: string; expiresAt: string }> };
+        setPendingInvites(data.invites ?? []);
+      } catch { /* 邀请通知失败不影响对局 */ }
+    };
+    void loadInvites();
+    const interval = window.setInterval(loadInvites, 10000);
+    return () => { cancelled = true; window.clearInterval(interval); };
   }, []);
 
   useEffect(() => {
@@ -223,8 +239,10 @@ export default function PVP() {
 
       {phase === 'lobby' && (
         <>
-          {/* 模式选择 */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
+  {pendingInvites.length > 0 && <div className="panel" role="status" style={{ marginBottom: 14, padding: 14, borderColor: 'var(--accent)' }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}><strong>新的对局邀请</strong><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{pendingInvites.length} 条待处理</span></div>{pendingInvites.slice(0, 3).map((invite) => <div key={invite.id} style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 8 }}><span style={{ flex: 1, fontSize: 12 }}>好友邀请你加入房间</span><button className="btn btn-primary" onClick={() => { setInviteCode(invite.inviteCode); setInviteMessage('邀请码已填入，请确认加入'); setPendingInvites((current) => current.filter((item) => item.id !== invite.id)) }}>查看邀请</button></div>)}</div>}
+
+  {/* 模式选择 */}
+  <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
             <ModeButton active={mode === 'ranked'} onClick={() => setMode('ranked')} title="排位赛" desc="影响段位分" icon="⚔️" />
             <ModeButton active={mode === 'casual'} onClick={() => setMode('casual')} title="休���赛" desc="轻松对战" icon="🎮" />
           </div>
