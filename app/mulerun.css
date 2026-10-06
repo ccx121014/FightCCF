@@ -130,6 +130,8 @@ input {
   .effect-hit { color: #fef08a; } .effect-slash { color: #93c5fd; font-size: 58px; } .effect-burst { color: #fbbf24; font-size: 54px; } .effect-shield { color: #67e8f9; font-size: 16px; } .effect-critical { color: #fb7185; font-size: 18px; }
   .camera-pulse { animation: camera-shake .18s linear; }
   .arena-controls .heavy { border-color: #fb7185; } .arena-controls .ultimate { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; }
+  .arena-controls button:disabled { cursor: not-allowed; filter: saturate(.35); opacity: .45; }
+  .attack-timing { min-width: 48px; color: #fbbf24; font: 700 10px monospace; text-align: center; }
   @keyframes fighter-windup { from { transform: translateX(-50%) scaleX(1); } to { transform: translateX(-50%) translateX(-8px) scaleX(.88); } }
   @keyframes fighter-strike { from { transform: translateX(-50%) translateX(-5px) scaleX(.9); } 55% { transform: translateX(-50%) translateX(16px) scaleX(1.12); } to { transform: translateX(-50%) translateX(5px) scaleX(1); } }
   @keyframes fighter-recovery { from { transform: translateX(-50%) translateX(5px) scaleX(1.08); } to { transform: translateX(-50%) scaleX(1); } }

@@ -4,6 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 
 type FighterState = 'idle' | 'run' | 'jump' | 'land' | 'hurt' | 'stun' | 'knockback' | 'down' | 'victory' | 'defeat'
 type AttackPhase = 'none' | 'startup' | 'active' | 'recovery' | 'cancel'
+type AttackProfile = { startup: number; active: number; recovery: number; cancel: number; label: string }
+const ATTACK_PROFILES: Record<string, AttackProfile> = {
+  attack: { startup: 120, active: 90, recovery: 220, cancel: 420, label: '轻攻击' },
+  heavy: { startup: 280, active: 120, recovery: 420, cancel: 760, label: '重攻击' },
+  skill: { startup: 420, active: 160, recovery: 620, cancel: 1120, label: '专属技' },
+  ultimate: { startup: 760, active: 220, recovery: 900, cancel: 1680, label: '终极技' },
+}
 type Fighter = { id: string; x: number; y: number; hp: number; facing: 1 | -1; action: string; combo: number; state?: FighterState; attackPhase?: AttackPhase; character?: '拳师' | '剑士' | '术士' | '游侠' }
 type ArenaProps = { wsUrl?: string; matchId?: string; onReport?: (reason: string) => void }
 
@@ -28,6 +35,8 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   const [attackPhase, setAttackPhase] = useState<AttackPhase>('none')
   const comboTimer = useRef<number | null>(null)
   const effectId = useRef(0)
+  const attackLockUntil = useRef(0)
+  const phaseTimers = useRef<number[]>([])
 
   function recordEvent(label: string) {
     setTimeline((events) => [`${new Date().toLocaleTimeString('zh-CN', { minute: '2-digit', second: '2-digit' })} · ${label}`, ...events].slice(0, 8))
@@ -113,15 +122,20 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   }
 
   function send(action: string, dx = 0, jump = false) {
-    recordEvent(action === 'attack' ? '发动连击' : action === 'skill' ? '释放算法技' : action === 'jump' ? '跳跃' : dx < 0 ? '向左移动' : dx > 0 ? '向右移动' : '操作')
-    if (action === 'attack' || action === 'heavy' || action === 'skill' || action === 'ultimate') {
+    const profile = ATTACK_PROFILES[action]
+    if (profile && Date.now() < attackLockUntil.current) return
+    recordEvent(profile?.label ?? (action === 'jump' ? '跳跃' : dx < 0 ? '向左移动' : dx > 0 ? '向右移动' : '操作'))
+    if (profile) {
+      attackLockUntil.current = Date.now() + profile.cancel
+      phaseTimers.current.forEach((timer) => window.clearTimeout(timer))
+      phaseTimers.current = []
       setAttackPhase('startup'); playImpactSound(action === 'skill' || action === 'ultimate' ? 'skill' : 'step')
-      window.setTimeout(() => setAttackPhase('active'), 130)
-      window.setTimeout(() => { setAttackPhase('recovery'); spawnEffect(action === 'ultimate' ? 'critical' : action === 'skill' ? 'burst' : action === 'heavy' ? 'slash' : 'hit', action === 'ultimate' ? '终结' : action === 'skill' ? 'ALGO!' : undefined); playImpactSound('hit'); setCameraPulse(true); window.setTimeout(() => setCameraPulse(false), 180) }, action === 'skill' ? 260 : 180)
-      window.setTimeout(() => setAttackPhase('cancel'), 360)
+      phaseTimers.current.push(window.setTimeout(() => setAttackPhase('active'), profile.startup))
+      phaseTimers.current.push(window.setTimeout(() => { setAttackPhase('recovery'); spawnEffect(action === 'ultimate' ? 'critical' : action === 'skill' ? 'burst' : action === 'heavy' ? 'slash' : 'hit', action === 'ultimate' ? '终结' : action === 'skill' ? 'ALGO!' : undefined); playImpactSound('hit'); setCameraPulse(true); window.setTimeout(() => setCameraPulse(false), 180) }, profile.startup + profile.active))
+      phaseTimers.current.push(window.setTimeout(() => setAttackPhase('cancel'), profile.startup + profile.active + profile.recovery))
       if (comboTimer.current) window.clearTimeout(comboTimer.current)
-      comboTimer.current = window.setTimeout(() => setAttackPhase('none'), 520)
-    } else if (action === 'jump') { playImpactSound('step'); setAttackPhase('none') } else if (dx !== 0) playImpactSound('step')
+      comboTimer.current = window.setTimeout(() => setAttackPhase('none'), profile.cancel)
+    } else if (action === 'jump') { playImpactSound('step'); setAttackPhase('none') } else if (dx !== 0 && Date.now() >= attackLockUntil.current) playImpactSound('step')
     const seq = ++inputSeq.current
     pendingInputs.current.push({ seq, action, dx, jump })
     setFighters((current) => current.map((fighter) => fighter.id === playerId ? { ...fighter, x: Math.max(0, Math.min(980, fighter.x + dx * 8)), y: jump ? Math.min(180, fighter.y + 16) : fighter.y, action } : fighter))
@@ -141,7 +155,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
       {mine && <div className={`arena-fighter player state-${mine.state ?? 'idle'} phase-${attackPhase}`} style={{ left: `${mine.x / 10}%`, bottom: `${mine.y + 32}px`, willChange: 'left, bottom' }}><span className="algorithm-core">{mine.character === '剑士' ? '⚔' : mine.character === '术士' ? '◇' : 'λ'}</span><b>{mine.hp}</b><i>{attackPhase !== 'none' ? attackPhase === 'active' ? '命中帧' : attackPhase === 'startup' ? '前摇' : attackPhase === 'recovery' ? '后摇' : '取消窗' : mine.state === 'hurt' ? '受击' : mine.state === 'down' ? '倒地' : ''}</i></div>}
     </div>
     <div className="arena-hud"><div><span>我方</span><progress value={mine?.hp ?? 100} max="100" /></div><div className="combo">COMBO {mine?.combo ?? 0}</div><div><span>对手</span><progress value={opponent?.hp ?? 100} max="100" /></div></div>
-    <div className="arena-controls"><button aria-label="向左移动" onClick={() => send('move', -1)}>←</button><button onClick={() => send('jump', 0, true)}>跳跃</button><button className="attack" onClick={() => send('attack')}>轻攻击</button><button className="attack heavy" onClick={() => send('heavy')}>重攻击</button><button className="skill" onClick={() => send('skill')}>专属技</button><button className="skill ultimate" onClick={() => send('ultimate')}>终极技</button><button aria-label="向右移动" onClick={() => send('move', 1)}>→</button></div>
+    <div className="arena-controls"><span className="attack-timing" aria-live="polite">{attackPhase === 'startup' ? '前摇' : attackPhase === 'active' ? '命中帧' : attackPhase === 'recovery' ? '后摇' : attackPhase === 'cancel' ? '取消窗口' : '可行动'}</span><button aria-label="向左移动" onClick={() => send('move', -1)}>←</button><button onClick={() => send('jump', 0, true)}>跳跃</button><button className="attack" disabled={attackPhase !== 'none' && attackPhase !== 'cancel'} onClick={() => send('attack')}>轻攻击</button><button className="attack heavy" disabled={attackPhase !== 'none' && attackPhase !== 'cancel'} onClick={() => send('heavy')}>重攻击</button><button className="skill" disabled={attackPhase !== 'none' && attackPhase !== 'cancel'} onClick={() => send('skill')}>专属技</button><button className="skill ultimate" disabled={attackPhase !== 'none' && attackPhase !== 'cancel'} onClick={() => send('ultimate')}>终极技</button><button aria-label="向右移动" onClick={() => send('move', 1)}>→</button></div>
     {timeline.length > 0 && <div style={{ marginTop: 12, padding: 10, border: '1px solid var(--border)', borderRadius: 10, fontSize: 11, color: 'var(--text-dim)' }}><strong>关键操作</strong>{timeline.map((event) => <div key={event}>{event}</div>)}</div>}
     <button className="btn btn-ghost" style={{ width: '100%', marginTop: 10, color: '#fb7185' }} disabled={reportSent} onClick={() => { onReport?.('作弊'); setReportSent(true) }}>{reportSent ? '举报已提交' : '举报对手'}</button>
   </section>
