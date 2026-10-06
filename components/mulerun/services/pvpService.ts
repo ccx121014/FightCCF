@@ -80,6 +80,18 @@ export class PVPService {
     this.send('match_end', { matchId, winnerId });
   }
 
+  async createAuthoritativeMatch(): Promise<{ matchId: string }> {
+    const response = await fetch('/api/pvp/matches', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'create' }) });
+    if (!response.ok) throw new Error('无法创建 PvP 房间');
+    const data = await response.json() as { match: { id: string } };
+    return { matchId: data.match.id };
+  }
+
+  async submitAuthoritativeAction(matchId: string, action: string): Promise<void> {
+    const response = await fetch('/api/pvp/matches', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'action', matchId, action }) });
+    if (!response.ok) throw new Error('服务器拒绝了该操作');
+  }
+
   disconnect(): void {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.handlers.clear();

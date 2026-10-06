@@ -21,3 +21,9 @@ export const gameCharacters = pgTable('game_characters', {
 export const battleRecords = pgTable('battle_records', {
   id: text('id').primaryKey(), userId: text('user_id').notNull(), result: text('result').notNull(), reward: integer('reward').notNull(), score: integer('score').notNull().default(0), createdAt: timestamp('created_at').notNull().defaultNow(),
 })
+export const pvpMatches = pgTable('pvp_matches', {
+  id: text('id').primaryKey(), status: text('status').notNull().default('waiting'), playerOneId: text('player_one_id').notNull(), playerTwoId: text('player_two_id'), playerOneHp: integer('player_one_hp').notNull().default(100), playerTwoHp: integer('player_two_hp').notNull().default(100), playerOneScore: integer('player_one_score').notNull().default(0), playerTwoScore: integer('player_two_score').notNull().default(0), createdAt: timestamp('created_at').notNull().defaultNow(), updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({ statusIdx: index('pvp_matches_status_idx').on(table.status) }))
+export const pvpActions = pgTable('pvp_actions', {
+  id: text('id').primaryKey(), matchId: text('match_id').notNull(), userId: text('user_id').notNull(), action: text('action').notNull(), seq: integer('seq').notNull(), createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({ matchSeqIdx: index('pvp_actions_match_seq_idx').on(table.matchId, table.seq) }))
