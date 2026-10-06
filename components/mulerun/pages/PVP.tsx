@@ -35,6 +35,8 @@ export default function PVP() {
   const [battleTime, setBattleTime] = useState(90);
   const [battleCombo, setBattleCombo] = useState(0);
   const [roomCode, setRoomCode] = useState('等待创建');
+  const [sessionRecord, setSessionRecord] = useState({ wins: 0, losses: 0, streak: 0 });
+  const [resultReason, setResultReason] = useState<'ko' | 'timeout' | 'disconnect' | null>(null);
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
@@ -51,7 +53,7 @@ export default function PVP() {
   }, [phase]);
 
   useEffect(() => {
-    if (phase === 'battle' && battleTime === 0) finishBattle(false);
+    if (phase === 'battle' && battleTime === 0) finishBattle(false, 'timeout');
   }, [battleTime, phase]);
 
   useEffect(() => {
@@ -148,9 +150,13 @@ export default function PVP() {
     if (nextOpponent === 0 || nextMine === 0) finishBattle(nextOpponent === 0);
   }
 
-  async function finishBattle(win: boolean) {
+  async function finishBattle(win: boolean, reason: 'ko' | 'timeout' | 'disconnect' = 'ko') {
     if (finishLockRef.current || phase !== 'battle' || !opponent) return
     finishLockRef.current = true
+    setResultReason(reason)
+    setSessionRecord((record) => win
+      ? { wins: record.wins + 1, losses: record.losses, streak: record.streak + 1 }
+      : { wins: record.wins, losses: record.losses + 1, streak: 0 })
     const higher = opponent.rating > rating ? RANK_RULES.higherRankBonus : 0;
     const ratingChange = win ? RANK_RULES.winBase + higher : mode === 'ranked' ? RANK_RULES.loseBase : 0;
     if (mode === 'ranked') setRating((r) => Math.max(0, r + ratingChange));
@@ -183,6 +189,11 @@ export default function PVP() {
 
       {phase === 'lobby' && (
         <>
+          <div className="panel" style={{ padding: 14, marginBottom: 18, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, textAlign: 'center' }}>
+            <RecordStat label="本局胜场" value={sessionRecord.wins} color="#4ade80" />
+            <RecordStat label="本局负场" value={sessionRecord.losses} color="#fb7185" />
+            <RecordStat label="连胜" value={sessionRecord.streak} color="var(--accent)" />
+          </div>
           {/* 模式选择 */}
           <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
             <ModeButton active={mode === 'ranked'} onClick={() => setMode('ranked')} title="排位赛" desc="影响段位分" icon="⚔️" />
@@ -255,7 +266,7 @@ export default function PVP() {
       )}
 
       {phase === 'battle' && opponent && (
-        <PvpArena onBattleEnd={({ win }) => finishBattle(win)} />
+        <PvpArena onBattleEnd={({ win, reason }) => finishBattle(win, reason)} />
       )}
       {phase === 'result' && matchResult && (
         <div className="card" style={{ padding: 32, textAlign: 'center', animation: 'pop 0.4s ease' }}>
@@ -263,6 +274,9 @@ export default function PVP() {
           <h2 style={{ fontSize: 28, fontWeight: 900, color: matchResult.win ? '#4ade80' : '#f43f5e' }}>
             {matchResult.win ? '胜利' : '失败'}
           </h2>
+          <div style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: 6 }}>
+            {resultReason === 'ko' ? '击败对手' : resultReason === 'disconnect' ? '对手断线判负' : '时间结束'} · 房间 {roomCode}
+          </div>
           {mode === 'ranked' && (
             <div style={{ fontSize: 16, marginTop: 10, fontWeight: 800, color: matchResult.ratingChange >= 0 ? '#4ade80' : '#f43f5e' }}>
               段位分 {matchResult.ratingChange >= 0 ? '+' : ''}{matchResult.ratingChange}
@@ -294,6 +308,10 @@ function computePower(charId: string): number {
   if (!c) return 1000;
   const s = c.baseStats;
   return s.hp * 0.5 + s.attack * 3 + s.defense * 2 + s.speed + s.critRate * 500;
+}
+
+function RecordStat({ label, value, color }: { label: string; value: number; color: string }) {
+  return <div><div style={{ fontSize: 22, fontWeight: 900, color }}>{value}</div><div style={{ fontSize: 11, color: 'var(--text-mute)' }}>{label}</div></div>;
 }
 
 function ModeButton({ active, onClick, title, desc, icon }: { active: boolean; onClick: () => void; title: string; desc: string; icon: string }) {
