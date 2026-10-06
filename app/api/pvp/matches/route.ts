@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { pvpActions, pvpMatches } from '@/lib/db/schema'
 
-const ACTIONS = new Set(['ready', 'move_left', 'move_right', 'jump', 'skill_1', 'skill_2', 'surrender'])
+const ACTIONS = new Set(['ready', 'move_left', 'move_right', 'jump', 'attack', 'skill', 'skill_1', 'skill_2', 'surrender'])
 const MAX_ACTION_LENGTH = 48
 const ACTION_WINDOW_MS = 5000
 const MAX_ACTIONS_PER_WINDOW = 30
@@ -64,12 +64,15 @@ export async function POST(request: Request) {
     const [last] = await db.select({ seq: pvpActions.seq }).from(pvpActions).where(eq(pvpActions.matchId, match.id)).orderBy(desc(pvpActions.seq)).limit(1)
     const seq = (last?.seq ?? 0) + 1
     const [saved] = await db.insert(pvpActions).values({ id: crypto.randomUUID(), matchId: match.id, userId: id, action: body.action, seq }).returning()
-    if (body.action === 'surrender') {
-      await db.update(pvpMatches).set({ status: 'finished', updatedAt: new Date() }).where(eq(pvpMatches.id, match.id))
-    } else if (match.status === 'ready') {
-      await db.update(pvpMatches).set({ status: 'active', updatedAt: new Date() }).where(eq(pvpMatches.id, match.id))
-    }
-    return NextResponse.json({ action: saved, authoritative: true, serverTime: Date.now() })
+    const isPlayerOne = match.playerOneId === id
+    const damage = body.action === 'skill' || body.action === 'skill_1' || body.action === 'skill_2' ? 18 : body.action === 'attack' ? 8 : 0
+    const nextOpponentHp = Math.max(0, (isPlayerOne ? match.playerTwoHp : match.playerOneHp) - damage)
+    const finished = nextOpponentHp === 0
+    const updatedValues = isPlayerOne
+      ? { playerTwoHp: nextOpponentHp, status: finished ? 'finished' : 'active', updatedAt: new Date() }
+      : { playerOneHp: nextOpponentHp, status: finished ? 'finished' : 'active', updatedAt: new Date() }
+    const [updated] = await db.update(pvpMatches).set(updatedValues).where(and(eq(pvpMatches.id, match.id), sql`${pvpMatches.status} <> 'finished'`)).returning()
+    return NextResponse.json({ action: saved, match: updated, authoritative: true, damage, winnerId: finished ? id : null, serverTime: Date.now() })
   }
 
   if (intent === 'state') {
