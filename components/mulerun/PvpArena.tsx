@@ -20,6 +20,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   const reconnectAttempts = useRef(0)
   const pendingInputs = useRef<Array<{ seq: number; action: string; dx: number; jump: boolean }>>([])
   const inputSeq = useRef(0)
+  const streamRef = useRef<EventSource | null>(null)
 
   function recordEvent(label: string) {
     setTimeline((events) => [`${new Date().toLocaleTimeString('zh-CN', { minute: '2-digit', second: '2-digit' })} · ${label}`, ...events].slice(0, 8))
@@ -66,6 +67,16 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
 
   useEffect(() => {
     if (!matchId || matchId === 'local-practice') return
+    const stream = new EventSource(`/api/pvp/matches/stream?matchId=${encodeURIComponent(matchId)}`)
+    streamRef.current = stream
+    stream.addEventListener('snapshot', (event) => {
+      const data = JSON.parse((event as MessageEvent).data) as { match?: { playerOneHp: number; playerTwoHp: number; status: string } }
+      if (!data.match) return
+      setNetworkState('在线')
+      setFighters((current) => current.map((fighter) => fighter.id === playerId ? { ...fighter, hp: data.match!.playerOneHp } : { ...fighter, hp: data.match!.playerTwoHp }))
+      if (data.match.status === 'finished') setStatus('对局已结束 · 已同步最终结果')
+    })
+    stream.onerror = () => { setNetworkState('离线'); setError('实时快照连接断开，正在使用轮询恢复') }
     const measure = async () => {
       const started = performance.now()
       try { const response = await fetch(`/api/pvp/matches?matchId=${encodeURIComponent(matchId)}`, { cache: 'no-store' }); if (!response.ok) throw new Error('latency')
@@ -73,8 +84,8 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
       } catch { setNetworkState('离线') }
     }
     void measure(); const interval = window.setInterval(measure, 3000)
-    return () => window.clearInterval(interval)
-  }, [matchId])
+    return () => { window.clearInterval(interval); stream.close(); streamRef.current = null }
+  }, [matchId, playerId])
 
   useEffect(() => { if (!roomId) return; const interval = window.setInterval(() => setTimer((value) => Math.max(0, value - 1)), 1000); return () => window.clearInterval(interval) }, [roomId])
 
