@@ -115,9 +115,13 @@ input {
 .arena-grid { position: absolute; inset: 0; opacity: .32; background-image: linear-gradient(rgba(56,189,248,.13) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,.13) 1px, transparent 1px); background-size: 42px 42px; transform: perspective(380px) rotateX(52deg) scale(1.4); transform-origin: bottom; }
 .arena-fighter { position: absolute; width: 58px; height: 72px; display: grid; place-items: center; transform: translateX(-50%); transition: left .12s linear, bottom .12s ease; z-index: 2; }
 .arena-fighter::after { content: ''; position: absolute; bottom: -8px; width: 84px; height: 12px; border-radius: 50%; background: rgba(0,0,0,.45); filter: blur(4px); }
-.algorithm-core { position: relative; z-index: 1; width: 50px; height: 50px; display: grid; place-items: center; border: 3px solid currentColor; border-radius: 16px 4px 16px 4px; background: rgba(7,10,18,.88); font: 900 28px monospace; box-shadow: 0 0 22px currentColor; }
+  .algorithm-core { position: relative; z-index: 1; width: 50px; height: 50px; display: grid; place-items: center; border: 3px solid currentColor; border-radius: 16px 4px 16px 4px; background: rgba(7,10,18,.88); font: 900 28px monospace; box-shadow: 0 0 22px currentColor; }
+  .fighter-sprite { position: relative; z-index: 1; width: 64px; height: 76px; display: block; background-image: url('/pvp/fighter-sprite-sheet.png'); background-size: 400% 300%; background-repeat: no-repeat; image-rendering: pixelated; filter: drop-shadow(0 0 10px currentColor); }
+  .sprite-idle, .sprite-move { background-position: 0 0; } .sprite-jump { background-position: 33.333% 0; } .sprite-land { background-position: 66.666% 0; }
+  .sprite-attack { background-position: 100% 0; } .sprite-heavy { background-position: 0 50%; } .sprite-skill { background-position: 33.333% 50%; } .sprite-ultimate { background-position: 66.666% 50%; }
+  .sprite-hurt { background-position: 100% 50%; } .state-knockback .fighter-sprite { background-position: 0 100%; } .state-down .fighter-sprite, .state-defeat .fighter-sprite { background-position: 33.333% 100%; } .state-victory .fighter-sprite { background-position: 66.666% 100%; }
+
   .arena-fighter b { position: absolute; top: -18px; font: 700 11px monospace; color: var(--text); }
-  .arena-fighter i { position: absolute; top: -38px; white-space: nowrap; font: 700 10px monospace; color: #fbbf24; font-style: normal; opacity: 0; }
   .arena-fighter.phase-startup { animation: fighter-windup .13s ease-out both; }
   .arena-fighter.phase-active { animation: fighter-strike .16s cubic-bezier(.2,1.5,.4,1) both; }
   .arena-fighter.phase-recovery { animation: fighter-recovery .18s ease-out both; }
@@ -131,7 +135,6 @@ input {
   .camera-pulse { animation: camera-shake .18s linear; }
   .arena-controls .heavy { border-color: #fb7185; } .arena-controls .ultimate { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; }
   .arena-controls button:disabled { cursor: not-allowed; filter: saturate(.35); opacity: .45; }
-  .attack-timing { min-width: 48px; color: #fbbf24; font: 700 10px monospace; text-align: center; }
   @keyframes fighter-windup { from { transform: translateX(-50%) scaleX(1); } to { transform: translateX(-50%) translateX(-8px) scaleX(.88); } }
   @keyframes fighter-strike { from { transform: translateX(-50%) translateX(-5px) scaleX(.9); } 55% { transform: translateX(-50%) translateX(16px) scaleX(1.12); } to { transform: translateX(-50%) translateX(5px) scaleX(1); } }
   @keyframes fighter-recovery { from { transform: translateX(-50%) translateX(5px) scaleX(1.08); } to { transform: translateX(-50%) scaleX(1); } }

@@ -5,8 +5,14 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { pvpActions, pvpMatches } from '@/lib/db/schema'
 
-const actions = new Set(['move', 'jump', 'attack', 'skill', 'ready'])
-const damageFor = (action: string) => action === 'skill' ? 18 : action === 'attack' ? 8 : 0
+const actions = new Set(['move', 'jump', 'attack', 'heavy', 'skill', 'ultimate', 'ready'])
+const ATTACK_RULES: Record<string, { cooldown: number; damage: number; reach: number }> = {
+  attack: { cooldown: 420, damage: 8, reach: 110 },
+  heavy: { cooldown: 760, damage: 16, reach: 125 },
+  skill: { cooldown: 1120, damage: 18, reach: 220 },
+  ultimate: { cooldown: 1680, damage: 32, reach: 280 },
+}
+const damageFor = (action: string) => ATTACK_RULES[action]?.damage ?? 0
 
 async function currentUser() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -30,7 +36,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const userId = await currentUser()
   if (!userId) return NextResponse.json({ error: '请先登录' }, { status: 401 })
-  const body = await request.json() as { intent?: string; matchId?: string; action?: string; clientTime?: number }
+  const body = await request.json() as { intent?: string; matchId?: string; action?: string; clientTime?: number; attackerX?: number; targetX?: number }
   const receivedAt = Date.now()
   if (body.intent === 'create') {
     const [match] = await db.insert(pvpMatches).values({ id: crypto.randomUUID(), playerOneId: userId }).returning()
@@ -51,8 +57,12 @@ export async function POST(request: Request) {
   if (match.status === 'finished') return NextResponse.json({ error: '对局已结束' }, { status: 409 })
   if (body.action === 'ready' && match.playerTwoId && match.status === 'ready') return NextResponse.json({ match, serverTime: Date.now() })
   if (!body.action || !actions.has(body.action)) return NextResponse.json({ error: '无效操作' }, { status: 400 })
-  const [last] = await db.select({ seq: pvpActions.seq }).from(pvpActions).where(eq(pvpActions.matchId, match.id)).orderBy(desc(pvpActions.seq)).limit(1)
-  const seq = (last?.seq ?? 0) + 1
+  const [lastUser] = await db.select({ createdAt: pvpActions.createdAt }).from(pvpActions).where(and(eq(pvpActions.matchId, match.id), eq(pvpActions.userId, userId))).orderBy(desc(pvpActions.seq)).limit(1)
+  const [lastGlobal] = await db.select({ seq: pvpActions.seq }).from(pvpActions).where(eq(pvpActions.matchId, match.id)).orderBy(desc(pvpActions.seq)).limit(1)
+  const rule = ATTACK_RULES[body.action]
+  if (rule && (typeof body.attackerX !== 'number' || typeof body.targetX !== 'number' || Math.abs(body.attackerX - body.targetX) > rule.reach)) return NextResponse.json({ error: '目标不在攻击判定盒内' }, { status: 409 })
+  if (rule && lastUser?.createdAt && Date.now() - lastUser.createdAt.getTime() < rule.cooldown) return NextResponse.json({ error: '攻击仍在动作冷却中' }, { status: 429 })
+  const seq = (lastGlobal?.seq ?? 0) + 1
   await db.insert(pvpActions).values({ id: crypto.randomUUID(), matchId: match.id, userId, action: body.action, seq })
   const playerOne = match.playerOneId === userId
   const damage = damageFor(body.action)
