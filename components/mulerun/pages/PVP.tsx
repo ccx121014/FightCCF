@@ -36,6 +36,7 @@ export default function PVP() {
   const [battleCombo, setBattleCombo] = useState(0);
   const [leaderboard, setLeaderboard] = useState<Array<{ username: string; rating: number; wins: number }>>([]);
   const [seasonStats, setSeasonStats] = useState({ wins: 0, losses: 0, nextReward: '赛季参与奖励', progress: 0, nextMilestone: '再赢 10 场领取参与奖励' });
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
@@ -289,6 +290,9 @@ export default function PVP() {
               再来一局
             </button>
           </div>
+          <button className="btn btn-ghost" style={{ width: '100%', marginTop: 10 }} onClick={() => { void navigator.clipboard?.writeText(`FightCCF PvP 再战邀请：${opponent?.name ?? '当前对手'}`); setInviteCopied(true); }}>
+            {inviteCopied ? '邀请信息已复制' : '邀请对手再战'}
+          </button>
         </div>
       )}
     </div>
