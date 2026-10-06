@@ -242,7 +242,7 @@ export default function PVP() {
       )}
 
       {phase === 'battle' && opponent && (
-        <PvpArena onReport={(reason) => { void fetch('/api/pvp/reports', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ matchId: 'local-practice', reason }) }) }} />
+        <PvpArena matchId="local-practice" onReport={(reason) => { void fetch('/api/pvp/reports', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ matchId: 'local-practice', reason, details: '来自对局内举报入口' }) }) }} />
       )}
       {phase === 'result' && matchResult && (
         <div className="card" style={{ padding: 32, textAlign: 'center', animation: 'pop 0.4s ease' }}>

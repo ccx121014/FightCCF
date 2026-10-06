@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 type Fighter = { id: string; x: number; y: number; hp: number; facing: 1 | -1; action: string; combo: number }
 type ArenaProps = { wsUrl?: string; matchId?: string; onReport?: (reason: string) => void }
 
-export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://localhost:8787', onReport }: ArenaProps) {
+export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://localhost:8787', matchId = 'local-practice', onReport }: ArenaProps) {
   const socketRef = useRef<WebSocket | null>(null)
   const [status, setStatus] = useState('正在匹配真人对手…')
   const [roomId, setRoomId] = useState<string>()
@@ -14,6 +14,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   const [timer, setTimer] = useState(90)
   const [error, setError] = useState('')
   const [timeline, setTimeline] = useState<string[]>([])
+  const [networkState, setNetworkState] = useState<'连接中' | '在线' | '离线'>('连接中')
 
   function recordEvent(label: string) {
     setTimeline((events) => [`${new Date().toLocaleTimeString('zh-CN', { minute: '2-digit', second: '2-digit' })} · ${label}`, ...events].slice(0, 8))
@@ -22,15 +23,17 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   useEffect(() => {
     const socket = new WebSocket(wsUrl)
     socketRef.current = socket
-    socket.onopen = () => setStatus('匹配中 · 等待真人玩家')
+    socket.onopen = () => { setNetworkState('在线'); setStatus('匹配中 · 等待真人玩家') }
     socket.onmessage = (event) => {
-      const message = JSON.parse(event.data) as { type: string; playerId?: string; roomId?: string; snapshot?: Fighter[] }
+      let message: { type: string; playerId?: string; roomId?: string; snapshot?: Fighter[] }
+      try { message = JSON.parse(event.data) as typeof message } catch { setError('收到无效的实时消息'); return }
       if (message.type === 'queued') setPlayerId(message.playerId)
       if (message.type === 'matched') { setRoomId(message.roomId); setPlayerId(message.playerId); setStatus('对手已连接 · 开始战斗'); if (message.snapshot) setFighters(message.snapshot) }
       if (message.type === 'state' && message.snapshot) setFighters(message.snapshot)
       if (message.type === 'opponent_left') setStatus('对手已断线')
     }
-    socket.onerror = () => { setError('WebSocket 未连接，请启动 PVP 实时服务'); setStatus('离线') }
+    socket.onerror = () => { setNetworkState('离线'); setError('WebSocket 未连接，请启动 PVP 实时服务'); setStatus('离线') }
+    socket.onclose = () => { setNetworkState('离线'); setStatus('连接已断开 · 可查看本地回放') }
     return () => socket.close()
   }, [wsUrl])
 
@@ -45,7 +48,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   const mine = fighters.find((fighter) => fighter.id === playerId)
   const opponent = fighters.find((fighter) => fighter.id !== playerId)
   return <section className="mulerun-pvp-arena">
-    <header className="arena-topbar"><span>{status}</span><strong>{String(Math.floor(timer / 60)).padStart(2, '0')}:{String(timer % 60).padStart(2, '0')}</strong></header>
+    <header className="arena-topbar"><span>{status}</span><span style={{ fontSize: 11, color: networkState === '在线' ? '#4ade80' : '#f59e0b' }}>网络 {networkState}</span><strong>{String(Math.floor(timer / 60)).padStart(2, '0')}:{String(timer % 60).padStart(2, '0')}</strong></header>
     {error && <p className="arena-error">{error}</p>}
     <div className="arena-stage" role="application" aria-label="真人算法竞技场">
       <div className="arena-grid" />
