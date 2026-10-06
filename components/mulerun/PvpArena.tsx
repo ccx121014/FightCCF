@@ -57,9 +57,8 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     socket.onclose = () => {
       setNetworkState('离线'); setStatus('连接已断开 · 正在尝试重连')
       if (reconnectAttempts.current < 3) {
-        const delay = 500 * 2 ** reconnectAttempts.current
         reconnectAttempts.current += 1
-        window.setTimeout(() => { if (document.visibilityState === 'visible') window.location.reload() }, delay)
+        setStatus(`连接已断开 · ${reconnectAttempts.current}/3 次重连准备中`)
       } else setStatus('连接已断开 · 可查看本地回放')
     }
     return () => { socket.close(); reconnectAttempts.current = 0 }
@@ -105,8 +104,8 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     {error && <p className="arena-error">{error}</p>}
     <div className="arena-stage" role="application" aria-label="真人算法竞技场">
       <div className="arena-grid" />
-      {opponent && <div className="arena-fighter enemy" style={{ left: `${opponent.x / 10}%`, bottom: `${opponent.y + 32}px` }}><span className="algorithm-core">∇</span><b>{opponent.hp}</b></div>}
-      {mine && <div className="arena-fighter player" style={{ left: `${mine.x / 10}%`, bottom: `${mine.y + 32}px` }}><span className="algorithm-core">λ</span><b>{mine.hp}</b></div>}
+      {opponent && <div className="arena-fighter enemy" style={{ left: `${opponent.x / 10}%`, bottom: `${opponent.y + 32}px`, willChange: 'left, bottom' }}><span className="algorithm-core">∇</span><b>{opponent.hp}</b></div>}
+      {mine && <div className="arena-fighter player" style={{ left: `${mine.x / 10}%`, bottom: `${mine.y + 32}px`, willChange: 'left, bottom' }}><span className="algorithm-core">λ</span><b>{mine.hp}</b></div>}
     </div>
     <div className="arena-hud"><div><span>我方</span><progress value={mine?.hp ?? 100} max="100" /></div><div className="combo">COMBO {mine?.combo ?? 0}</div><div><span>对手</span><progress value={opponent?.hp ?? 100} max="100" /></div></div>
     <div className="arena-controls"><button onClick={() => send('move', -1)}>←</button><button onClick={() => send('jump', 0, true)}>跳跃</button><button className="attack" onClick={() => send('attack')}>连击</button><button className="skill" onClick={() => send('skill')}>算法技</button><button onClick={() => send('move', 1)}>→</button></div>
