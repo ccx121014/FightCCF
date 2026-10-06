@@ -366,10 +366,11 @@ export default function PVP() {
 }
 
 function RiskPanel() {
-  const [events, setEvents] = useState<Array<{ event: { id: string; eventType: string; severity: string; createdAt: string }; matchStatus?: string | null }>>([])
+  const [events, setEvents] = useState<Array<{ event: { id: string; eventType: string; severity: string; createdAt: string; userId: string }; matchStatus?: string | null }>>([])
+  const [banMessage, setBanMessage] = useState('')
   useEffect(() => { void fetch('/api/pvp/risk?limit=5', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ events?: typeof events }> : null).then((data) => { if (data?.events) setEvents(data.events) }).catch(() => undefined) }, [])
   if (events.length === 0) return null
-  return <div className="panel" style={{ marginTop: 14, padding: 14, borderColor: '#f59e0b' }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}><strong>风控事件</strong><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>最近 5 条</span></div>{events.map(({ event, matchStatus }) => <div key={event.id} style={{ display: 'flex', gap: 8, padding: '7px 0', borderTop: '1px solid var(--border)', fontSize: 12 }}><span style={{ color: event.severity === 'high' ? '#fb7185' : '#f59e0b' }}>{event.severity}</span><span style={{ flex: 1 }}>{event.eventType}</span><span style={{ color: 'var(--text-mute)' }}>{matchStatus ?? '未知'}</span></div>)}</div>
+  return <div className="panel" style={{ marginTop: 14, padding: 14, borderColor: '#f59e0b' }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}><strong>风控事件</strong><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>最近 5 条</span></div>{events.map(({ event, matchStatus }) => <div key={event.id} style={{ display: 'flex', gap: 8, padding: '7px 0', borderTop: '1px solid var(--border)', fontSize: 12 }}><span style={{ color: event.severity === 'high' ? '#fb7185' : '#f59e0b' }}>{event.severity}</span><span style={{ flex: 1 }}>{event.eventType}</span><span style={{ color: 'var(--text-mute)' }}>{matchStatus ?? '未知'}</span><button className="btn btn-ghost" style={{ fontSize: 10, padding: '4px 7px' }} onClick={() => { const reason = window.prompt('封禁原因'); if (!reason) return; void fetch('/api/pvp/risk', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'ban', userId: event.userId, reason }) }).then((response) => setBanMessage(response.ok ? '封禁记录已创建' : '封禁失败')) }}>封禁</button></div>)}{banMessage && <div role="status" style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{banMessage}</div>}</div>
 }
 
 function SpectatePanel() {

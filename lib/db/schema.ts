@@ -51,6 +51,9 @@ export const pvpTeamMembers = pgTable('pvp_team_members', {
 export const pvpTeamInvites = pgTable('pvp_team_invites', {
   id: text('id').primaryKey(), teamId: text('team_id').notNull(), inviterId: text('inviter_id').notNull(), inviteeId: text('invitee_id').notNull(), status: text('status').notNull().default('pending'), createdAt: timestamp('created_at').notNull().defaultNow(), expiresAt: timestamp('expires_at').notNull(),
 })
+export const pvpBans = pgTable('pvp_bans', {
+  id: text('id').primaryKey(), userId: text('user_id').notNull(), adminId: text('admin_id').notNull(), reason: text('reason').notNull(), status: text('status').notNull().default('active'), expiresAt: timestamp('expires_at'), createdAt: timestamp('created_at').notNull().defaultNow(),
+})
 export const pvpRiskEvents = pgTable('pvp_risk_events', {
   id: text('id').primaryKey(), matchId: text('match_id').notNull(), userId: text('user_id').notNull(), eventType: text('event_type').notNull(), severity: text('severity').notNull().default('low'), metadata: jsonb('metadata').notNull().default({}), createdAt: timestamp('created_at').notNull().defaultNow(),
 })
