@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 
 type Fighter = { id: string; x: number; y: number; hp: number; facing: 1 | -1; action: string; combo: number }
-type ArenaProps = { wsUrl?: string }
+type ArenaProps = { wsUrl?: string; matchId?: string; onReport?: (reason: string) => void }
 
-export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://localhost:8787' }: ArenaProps) {
+export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://localhost:8787', onReport }: ArenaProps) {
   const socketRef = useRef<WebSocket | null>(null)
   const [status, setStatus] = useState('正在匹配真人对手…')
   const [roomId, setRoomId] = useState<string>()
@@ -13,6 +13,11 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   const [fighters, setFighters] = useState<Fighter[]>([])
   const [timer, setTimer] = useState(90)
   const [error, setError] = useState('')
+  const [timeline, setTimeline] = useState<string[]>([])
+
+  function recordEvent(label: string) {
+    setTimeline((events) => [`${new Date().toLocaleTimeString('zh-CN', { minute: '2-digit', second: '2-digit' })} · ${label}`, ...events].slice(0, 8))
+  }
 
   useEffect(() => {
     const socket = new WebSocket(wsUrl)
@@ -32,6 +37,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   useEffect(() => { if (!roomId) return; const interval = window.setInterval(() => setTimer((value) => Math.max(0, value - 1)), 1000); return () => window.clearInterval(interval) }, [roomId])
 
   function send(action: string, dx = 0, jump = false) {
+    recordEvent(action === 'attack' ? '发动连击' : action === 'skill' ? '释放算法技' : action === 'jump' ? '跳跃' : dx < 0 ? '向左移动' : dx > 0 ? '向右移动' : '操作')
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN || !roomId) return
     socketRef.current.send(JSON.stringify({ type: 'input', roomId, action, dx, jump }))
   }
@@ -48,5 +54,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     </div>
     <div className="arena-hud"><div><span>我方</span><progress value={mine?.hp ?? 100} max="100" /></div><div className="combo">COMBO {mine?.combo ?? 0}</div><div><span>对手</span><progress value={opponent?.hp ?? 100} max="100" /></div></div>
     <div className="arena-controls"><button onClick={() => send('move', -1)}>←</button><button onClick={() => send('jump', 0, true)}>跳跃</button><button className="attack" onClick={() => send('attack')}>连击</button><button className="skill" onClick={() => send('skill')}>算法技</button><button onClick={() => send('move', 1)}>→</button></div>
+    {timeline.length > 0 && <div style={{ marginTop: 12, padding: 10, border: '1px solid var(--border)', borderRadius: 10, fontSize: 11, color: 'var(--text-dim)' }}><strong>关键操作</strong>{timeline.map((event) => <div key={event}>{event}</div>)}</div>}
+    <button className="btn btn-ghost" style={{ width: '100%', marginTop: 10, color: '#fb7185' }} onClick={() => onReport?.('作弊')}>举报对手</button>
   </section>
 }

@@ -242,7 +242,7 @@ export default function PVP() {
       )}
 
       {phase === 'battle' && opponent && (
-        <PvpArena />
+        <PvpArena onReport={(reason) => { void fetch('/api/pvp/reports', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ matchId: 'local-practice', reason }) }) }} />
       )}
       {phase === 'result' && matchResult && (
         <div className="card" style={{ padding: 32, textAlign: 'center', animation: 'pop 0.4s ease' }}>
