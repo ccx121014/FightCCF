@@ -39,6 +39,8 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   const phaseTimers = useRef<number[]>([])
   const bufferedAttack = useRef<string | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
+  const playerIdRef = useRef<string | undefined>(undefined)
+  const roomIdRef = useRef<string | undefined>(undefined)
 
   function recordEvent(label: string) {
     setTimeline((events) => [`${new Date().toLocaleTimeString('zh-CN', { minute: '2-digit', second: '2-digit' })} · ${label}`, ...events].slice(0, 8))
@@ -51,18 +53,18 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     socket.onmessage = (event) => {
       let message: { type: string; playerId?: string; roomId?: string; snapshot?: Fighter[]; ack?: number }
       try { message = JSON.parse(event.data) as typeof message } catch { setError('收到无效的实时消息'); return }
-      if (message.type === 'queued') setPlayerId(message.playerId)
-      if (message.type === 'matched') { setRoomId(message.roomId); setPlayerId(message.playerId); setStatus('对手已连接 · 开始战斗'); if (message.snapshot) setFighters(message.snapshot) }
+      if (message.type === 'queued' && message.playerId) { playerIdRef.current = message.playerId; setPlayerId(message.playerId) }
+      if (message.type === 'matched') { if (message.roomId) { roomIdRef.current = message.roomId; setRoomId(message.roomId) }; if (message.playerId) { playerIdRef.current = message.playerId; setPlayerId(message.playerId) }; setStatus('对手已连接 · 开始战斗'); if (message.snapshot) setFighters(message.snapshot) }
       if (message.type === 'state' && message.snapshot) {
         const acknowledgedSeq = message.ack ?? inputSeq.current
-        const localFighter = message.snapshot.find((fighter) => fighter.id === playerId)
+        const localFighter = message.snapshot.find((fighter) => fighter.id === playerIdRef.current)
         if (localFighter?.attackPhase) setAttackPhase(localFighter.attackPhase)
         if (localFighter?.state === 'hurt' || localFighter?.state === 'down') playImpactSound('hurt')
         pendingInputs.current = pendingInputs.current.filter((input) => input.seq > acknowledgedSeq)
         setFighters((current) => {
           const serverSnapshot = message.snapshot!
           return serverSnapshot.map((fighter) => {
-            if (fighter.id !== playerId) return fighter
+            if (fighter.id !== playerIdRef.current) return fighter
             return pendingInputs.current.reduce((next, input) => ({
               ...next,
               x: Math.max(0, Math.min(980, next.x + input.dx * 8)),
@@ -89,6 +91,8 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
       if (comboTimer.current) window.clearTimeout(comboTimer.current)
       audioContextRef.current?.close().catch(() => undefined)
       audioContextRef.current = null
+      playerIdRef.current = undefined
+      roomIdRef.current = undefined
     }
   }, [wsUrl])
 
@@ -102,7 +106,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
       if (!data.match) return
       setNetworkState('在线')
       if (data.match.fighters?.length) setFighters(data.match.fighters)
-      else setFighters((current) => current.map((fighter) => fighter.id === playerId ? { ...fighter, hp: data.match!.playerOneHp } : { ...fighter, hp: data.match!.playerTwoHp }))
+      else setFighters((current) => current.map((fighter) => fighter.id === playerIdRef.current ? { ...fighter, hp: data.match!.playerOneHp } : { ...fighter, hp: data.match!.playerTwoHp }))
       if (data.match.status === 'finished') setStatus('对局已结束 · 已同步最终结果')
     })
     stream.onerror = () => { setNetworkState('离线'); setError('实时快照连接断开，正在使用轮询恢复') }
@@ -116,7 +120,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     return () => { window.clearInterval(interval); stream.close(); streamRef.current = null }
   }, [matchId, playerId])
 
-  useEffect(() => { if (!roomId) return; const interval = window.setInterval(() => setTimer((value) => Math.max(0, value - 1)), 1000); return () => window.clearInterval(interval) }, [roomId])
+  useEffect(() => { if (!roomId) return; setTimer(90); const interval = window.setInterval(() => setTimer((value) => Math.max(0, value - 1)), 1000); return () => window.clearInterval(interval) }, [roomId])
 
   function playImpactSound(kind: 'step' | 'hit' | 'skill' | 'hurt') {
     if (typeof window === 'undefined') return
@@ -161,8 +165,8 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     const seq = ++inputSeq.current
     pendingInputs.current.push({ seq, action, dx, jump })
     setFighters((current) => current.map((fighter) => fighter.id === playerId ? { ...fighter, x: Math.max(0, Math.min(980, fighter.x + dx * 8)), y: jump ? Math.min(180, fighter.y + 16) : fighter.y, action } : fighter))
-    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN || !roomId) return
-    socketRef.current.send(JSON.stringify({ type: 'input', roomId, action, dx, jump, seq, clientTime: Date.now(), attackerX: mine?.x ?? 0, targetX: opponent?.x ?? 980 }))
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN || !roomIdRef.current) return
+    socketRef.current.send(JSON.stringify({ type: 'input', roomId: roomIdRef.current, action, dx, jump, seq, clientTime: Date.now(), attackerX: mine?.x ?? 0, targetX: opponent?.x ?? 980 }))
   }
 
   const mine = fighters.find((fighter) => fighter.id === playerId)
