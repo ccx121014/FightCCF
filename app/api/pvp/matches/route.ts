@@ -30,11 +30,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const userId = await currentUser()
   if (!userId) return NextResponse.json({ error: '请先登录' }, { status: 401 })
-  const body = await request.json() as { intent?: string; matchId?: string; action?: string }
+  const body = await request.json() as { intent?: string; matchId?: string; action?: string; clientTime?: number }
+  const receivedAt = Date.now()
   if (body.intent === 'create') {
     const [match] = await db.insert(pvpMatches).values({ id: crypto.randomUUID(), playerOneId: userId }).returning()
     return NextResponse.json({ match }, { status: 201 })
   }
+  if (body.clientTime && Math.abs(receivedAt - body.clientTime) > 30_000) return NextResponse.json({ error: '客户端时间漂移过大' }, { status: 400 })
   if (!body.matchId) return NextResponse.json({ error: '缺少房间 ID' }, { status: 400 })
   const [match] = await db.select().from(pvpMatches).where(eq(pvpMatches.id, body.matchId)).limit(1)
   if (!match) return NextResponse.json({ error: '对局不存在' }, { status: 404 })
