@@ -49,6 +49,7 @@ export default function Battle() {
   const [result, setResult] = useState<ResultData | null>(null);
   const [countdown, setCountdown] = useState(3);
   const [started, setStarted] = useState(false);
+  const [battleKey, setBattleKey] = useState(0);
 
   const level = levelId ? getLevel(levelId) : undefined;
   const playerChar = getCharacter(selectedId);
@@ -240,24 +241,28 @@ export default function Battle() {
       engineRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [levelId]);
+  }, [levelId, battleKey]);
 
   const handleRetry = useCallback(() => {
-    // 重新加载本关
     setResult(null);
+    setHud(null);
+    setStarted(false);
+    setCountdown(3);
     resolvedRef.current = false;
-    navigate(0);
-  }, [navigate]);
+    setBattleKey((key) => key + 1);
+  }, []);
 
   const handleNext = useCallback(() => {
     if (!level) return;
     const idx = LEVELS.findIndex((l) => l.id === level.id);
     const next = LEVELS[idx + 1];
-    if (next) {
-      navigate(`/battle/${next.id}`);
-    } else {
-      navigate('/levels');
-    }
+    setResult(null);
+    setHud(null);
+    setStarted(false);
+    setCountdown(3);
+    resolvedRef.current = false;
+    if (next) navigate(`/battle/${next.id}`, { replace: true });
+    else navigate('/levels', { replace: true });
   }, [level, navigate]);
 
   if (!level || !playerChar) {
