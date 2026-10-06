@@ -16,5 +16,7 @@ export async function GET() {
     wins: rating?.wins ?? 0,
     losses: rating?.losses ?? 0,
     nextReward: rating && rating.rating >= 1500 ? '赛季精英补给箱' : '赛季参与奖励',
+    progress: Math.min(100, Math.round(((rating?.wins ?? 0) / 10) * 100)),
+    nextMilestone: rating?.rating && rating.rating >= 1500 ? '已达成精英奖励' : `再赢 ${Math.max(0, 10 - (rating?.wins ?? 0))} 场领取参与奖励`,
   })
 }

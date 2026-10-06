@@ -35,7 +35,7 @@ export default function PVP() {
   const [battleTime, setBattleTime] = useState(90);
   const [battleCombo, setBattleCombo] = useState(0);
   const [leaderboard, setLeaderboard] = useState<Array<{ username: string; rating: number; wins: number }>>([]);
-  const [seasonStats, setSeasonStats] = useState({ wins: 0, losses: 0, nextReward: '赛季参与奖励' });
+  const [seasonStats, setSeasonStats] = useState({ wins: 0, losses: 0, nextReward: '赛季参与奖励', progress: 0, nextMilestone: '再赢 10 场领取参与奖励' });
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
@@ -47,11 +47,11 @@ export default function PVP() {
     let cancelled = false;
     void Promise.all([
       fetch('/api/pvp/leaderboard', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ leaderboard?: Array<{ username: string; rating: number; wins: number }> }> : null),
-      fetch('/api/pvp/rating', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ wins?: number; losses?: number; nextReward?: string }> : null),
+      fetch('/api/pvp/rating', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ wins?: number; losses?: number; nextReward?: string; progress?: number; nextMilestone?: string }> : null),
     ]).then(([leaderboardData, ratingData]) => {
       if (cancelled) return;
       if (leaderboardData?.leaderboard) setLeaderboard(leaderboardData.leaderboard.slice(0, 5));
-      if (ratingData) setSeasonStats({ wins: ratingData.wins ?? 0, losses: ratingData.losses ?? 0, nextReward: ratingData.nextReward ?? '赛季参与奖励' });
+      if (ratingData) setSeasonStats({ wins: ratingData.wins ?? 0, losses: ratingData.losses ?? 0, nextReward: ratingData.nextReward ?? '赛季参与奖励', progress: ratingData.progress ?? 0, nextMilestone: ratingData.nextMilestone ?? '再赢 10 场领取参与奖励' });
     }).catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
@@ -184,6 +184,8 @@ export default function PVP() {
           <div style={{ fontSize: 20, fontWeight: 900, color: rank.color }}>{rank.name}</div>
           <div style={{ fontSize: 13, color: 'var(--text-dim)' }}>段位分 {rating} · {seasonStats.wins} 胜 / {seasonStats.losses} 负</div>
           <div style={{ fontSize: 12, color: 'var(--gold)', marginTop: 5 }}>赛季奖励：{seasonStats.nextReward}</div>
+          <div style={{ marginTop: 8, height: 6, borderRadius: 99, background: 'var(--bg-3)', overflow: 'hidden' }}><div style={{ width: `${seasonStats.progress}%`, height: '100%', background: 'var(--gold)', transition: 'width .3s ease' }} /></div>
+          <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>{seasonStats.nextMilestone}</div>
         </div>
       </div>
 
