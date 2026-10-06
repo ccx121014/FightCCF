@@ -65,9 +65,17 @@ export async function POST(request: Request) {
   return jsonError('不支持的 PvP 请求', 400)
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const id = await userId()
   if (!id) return jsonError('请先登录', 401)
+  const matchId = new URL(request.url).searchParams.get('matchId')
+  if (matchId) {
+    const [match] = await db.select().from(pvpMatches).where(eq(pvpMatches.id, matchId)).limit(1)
+    if (!match) return jsonError('对局不存在', 404)
+    if (match.playerOneId !== id && match.playerTwoId !== id) return jsonError('无权查看此对局', 403)
+    const actions = await db.select().from(pvpActions).where(eq(pvpActions.matchId, match.id)).orderBy(pvpActions.seq)
+    return NextResponse.json({ match, actions, serverTime: Date.now() })
+  }
   const matches = await db.select().from(pvpMatches).where(sql`${pvpMatches.status} in ('waiting', 'ready', 'active')`).orderBy(desc(pvpMatches.createdAt)).limit(20)
   return NextResponse.json({ matches })
 }

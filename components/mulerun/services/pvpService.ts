@@ -87,6 +87,19 @@ export class PVPService {
     return { matchId: data.match.id };
   }
 
+  async joinAuthoritativeMatch(matchId: string): Promise<void> {
+    const response = await fetch('/api/pvp/matches', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'join', matchId }) });
+    if (!response.ok) throw new Error('房间已满或已开始');
+  }
+
+  async getAuthoritativeState(matchId: string): Promise<{ serverTime: number; latency: number }> {
+    const startedAt = Date.now();
+    const response = await fetch(`/api/pvp/matches?matchId=${encodeURIComponent(matchId)}`, { cache: 'no-store' });
+    if (!response.ok) throw new Error('无法同步对局状态');
+    const data = await response.json() as { serverTime: number };
+    return { serverTime: data.serverTime, latency: Date.now() - startedAt };
+  }
+
   async submitAuthoritativeAction(matchId: string, action: string): Promise<void> {
     const response = await fetch('/api/pvp/matches', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'action', matchId, action }) });
     if (!response.ok) throw new Error('服务器拒绝了该操作');

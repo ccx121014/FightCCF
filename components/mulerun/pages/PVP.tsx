@@ -37,6 +37,7 @@ export default function PVP() {
   const [roomCode, setRoomCode] = useState('等待创建');
   const [sessionRecord, setSessionRecord] = useState({ wins: 0, losses: 0, streak: 0 });
   const [resultReason, setResultReason] = useState<'ko' | 'timeout' | 'disconnect' | null>(null);
+  const [networkState, setNetworkState] = useState<{ label: string; latency: number | null }>({ label: '检测中', latency: null });
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
@@ -45,6 +46,26 @@ export default function PVP() {
   const queueRequestRef = useRef(0);
 
   const rank = getRankByRating(rating);
+
+  useEffect(() => {
+    let cancelled = false;
+    const checkNetwork = async () => {
+      const startedAt = Date.now();
+      try {
+        const response = await fetch('/api/pvp/matches', { cache: 'no-store' });
+        if (!response.ok) throw new Error('network');
+        if (!cancelled) {
+          const latency = Date.now() - startedAt;
+          setNetworkState({ latency, label: latency < 100 ? '优秀' : latency < 220 ? '稳定' : '较高' });
+        }
+      } catch {
+        if (!cancelled) setNetworkState({ latency: null, label: '离线演练' });
+      }
+    };
+    void checkNetwork();
+    const timer = window.setInterval(checkNetwork, 15000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, []);
 
   useEffect(() => {
     if (phase !== 'battle') return;
@@ -175,6 +196,9 @@ export default function PVP() {
     <div className="page">
       <h1 className="page-title">竞技对战</h1>
       <p className="page-sub">与其他算法战士实时较量，冲击更高段位</p>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12, color: networkState.latency !== null && networkState.latency < 220 ? '#4ade80' : '#f59e0b', fontSize: 12, fontWeight: 700 }}>
+        网络 {networkState.label}{networkState.latency !== null ? ` · ${networkState.latency}ms` : ''}
+      </div>
 
       {/* 段位卡 */}
       <div className="card" style={{ padding: 20, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 16, background: `linear-gradient(120deg, ${rank.color}22, transparent 60%), linear-gradient(180deg, var(--bg-2), var(--bg-1))`, borderColor: rank.color }}>
