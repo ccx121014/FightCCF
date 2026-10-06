@@ -34,12 +34,52 @@ export default function PVP() {
   const [battleHp, setBattleHp] = useState({ mine: 100, opponent: 100 });
   const [battleTime, setBattleTime] = useState(90);
   const [battleCombo, setBattleCombo] = useState(0);
+  const [leaderboard, setLeaderboard] = useState<Array<{ username: string; rating: number; wins: number }>>([]);
+  const [seasonStats, setSeasonStats] = useState({ wins: 0, losses: 0, nextReward: '赛季参与奖励', progress: 0, nextMilestone: '再赢 10 场领取参与奖励' });
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [seasonReward, setSeasonReward] = useState<{ eligible: boolean; status: string } | null>(null);
+  const [rewardMessage, setRewardMessage] = useState('');
+  const [pendingInvites, setPendingInvites] = useState<Array<{ id: string; inviteCode: string; expiresAt: string; matchId: string }>>([]);
+  const [inviteAction, setInviteAction] = useState<string | null>(null);
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
   const matchTimerRef = useRef<number>(0);
 
   const rank = getRankByRating(rating);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      fetch('/api/pvp/leaderboard', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ leaderboard?: Array<{ username: string; rating: number; wins: number }> }> : null),
+      fetch('/api/pvp/rating', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ wins?: number; losses?: number; nextReward?: string; progress?: number; nextMilestone?: string }> : null),
+      fetch('/api/pvp/rewards', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ eligible: boolean; reward?: { status: string } | null }> : null),
+    ]).then(([leaderboardData, ratingData, rewardData]) => {
+      if (cancelled) return;
+      if (leaderboardData?.leaderboard) setLeaderboard(leaderboardData.leaderboard.slice(0, 5));
+      if (ratingData) setSeasonStats({ wins: ratingData.wins ?? 0, losses: ratingData.losses ?? 0, nextReward: ratingData.nextReward ?? '赛季参与奖励', progress: ratingData.progress ?? 0, nextMilestone: ratingData.nextMilestone ?? '再赢 10 场领取参与奖励' });
+      if (rewardData) setSeasonReward({ eligible: rewardData.eligible, status: rewardData.reward?.status ?? 'available' });
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadInvites = async () => {
+      try {
+        const response = await fetch('/api/pvp/invites', { cache: 'no-store' });
+        if (!response.ok || cancelled) return;
+        const data = await response.json() as { invites?: Array<{ id: string; inviteCode: string; expiresAt: string; matchId: string }> };
+        setPendingInvites(data.invites ?? []);
+      } catch { /* 邀请通知失败不影响对局 */ }
+    };
+    void loadInvites();
+    const interval = window.setInterval(loadInvites, 10000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, []);
 
   useEffect(() => {
     if (phase !== 'battle') return;
@@ -58,6 +98,28 @@ export default function PVP() {
       serviceRef.current?.disconnect();
     };
   }, []);
+
+  async function createInviteRoom() {
+    setInviteLoading(true); setInviteMessage('');
+    try {
+      const response = await fetch('/api/pvp/invites', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'create' }) });
+      const data = await response.json() as { invite?: { inviteCode: string }; error?: string };
+      if (!response.ok || !data.invite) throw new Error(data.error ?? '创建房间失败');
+      setInviteCode(data.invite.inviteCode); setInviteMessage('房间已创建，邀请码 30 分钟内有效');
+    } catch (error) { setInviteMessage(error instanceof Error ? error.message : '创建房间失败'); }
+    finally { setInviteLoading(false); }
+  }
+
+  async function joinInviteRoom() {
+    setInviteLoading(true); setInviteMessage('');
+    try {
+      const response = await fetch('/api/pvp/invites', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'join', inviteCode }) });
+      const data = await response.json() as { match?: { id: string }; error?: string };
+      if (!response.ok || !data.match) throw new Error(data.error ?? '加入房间失败');
+      setInviteMessage('已加入房间，可以开始对战'); setOpponent({ name: '好友房间对手', rating, characterId: selectedId }); setPhase('matched');
+    } catch (error) { setInviteMessage(error instanceof Error ? error.message : '加入房间失败'); }
+    finally { setInviteLoading(false); }
+  }
 
   function startQueue() {
     setPhase('queue');
@@ -97,7 +159,7 @@ export default function PVP() {
     const range = rank.matchRange;
     const oppRating = Math.max(0, rating + Math.round((Math.random() - 0.5) * range * 2));
     const oppChar = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
-    const names = ['AlgoMaster', '常数优化', 'DP_God', '打表选手', '暴力出奇迹', '卡常怪', 'OI退役选手', 'ACMer'];
+    const names = ['AlgoMaster', '常数优���', 'DP_God', '打表选手', '暴力出奇迹', '卡常怪', 'OI退役选手', 'ACMer'];
     onMatched({
       name: names[Math.floor(Math.random() * names.length)] + Math.floor(Math.random() * 99),
       rating: oppRating,
@@ -167,16 +229,23 @@ export default function PVP() {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 20, fontWeight: 900, color: rank.color }}>{rank.name}</div>
-          <div style={{ fontSize: 13, color: 'var(--text-dim)' }}>段位分 {rating}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-dim)' }}>段位分 {rating} · {seasonStats.wins} 胜 / {seasonStats.losses} 负</div>
+          <div style={{ fontSize: 12, color: 'var(--gold)', marginTop: 5 }}>赛季奖励：{seasonStats.nextReward}</div>
+          <div style={{ marginTop: 8, height: 6, borderRadius: 99, background: 'var(--bg-3)', overflow: 'hidden' }}><div style={{ width: `${seasonStats.progress}%`, height: '100%', background: 'var(--gold)', transition: 'width .3s ease' }} /></div>
+          <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>{seasonStats.nextMilestone}</div>
+          {seasonReward && <button className="btn btn-ghost" style={{ marginTop: 8, fontSize: 11 }} disabled={!seasonReward.eligible || seasonReward.status === 'claimed'} onClick={() => { void fetch('/api/pvp/rewards', { method: 'POST' }).then(async (response) => { const data = await response.json() as { reward?: { status: string }; error?: string }; if (!response.ok) { setRewardMessage(data.error ?? '领取失败'); return } setSeasonReward({ eligible: true, status: data.reward?.status ?? 'claimed' }); setRewardMessage('赛季奖励已领取') }) }}>{seasonReward.status === 'claimed' ? '奖励已领取' : seasonReward.eligible ? '领取赛季奖励' : '完成 10 胜解锁奖励'}</button>}
+          {rewardMessage && <div role="status" style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>{rewardMessage}</div>}
         </div>
       </div>
 
       {phase === 'lobby' && (
         <>
-          {/* 模式选择 */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
+  {pendingInvites.length > 0 && <div className="panel" role="status" style={{ marginBottom: 14, padding: 14, borderColor: 'var(--accent)' }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}><strong>新的对局邀请</strong><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{pendingInvites.length} 条待处理</span></div>{pendingInvites.slice(0, 3).map((invite) => <div key={invite.id} style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 8 }}><span style={{ flex: 1, fontSize: 12 }}>好友邀请你加入房间</span><button className="btn btn-primary" disabled={inviteAction === invite.id} onClick={async () => { setInviteAction(invite.id); setInviteMessage('正在加入房间…'); try { const response = await fetch('/api/pvp/invites', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'join', inviteCode: invite.inviteCode }) }); const data = await response.json() as { match?: { id: string }; error?: string }; if (!response.ok || !data.match) throw new Error(data.error ?? '加入失败'); setInviteMessage('已接受邀请，正在进入对局'); setPendingInvites((current) => current.filter((item) => item.id !== invite.id)); setPhase('matched'); } catch (error) { setInviteMessage(error instanceof Error ? error.message : '加入失败'); } finally { setInviteAction(null); } }}>接受并加入</button></div>)}{inviteMessage && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{inviteMessage}</div>}</div>}
+
+  {/* 模式选择 */}
+  <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
             <ModeButton active={mode === 'ranked'} onClick={() => setMode('ranked')} title="排位赛" desc="影响段位分" icon="⚔️" />
-            <ModeButton active={mode === 'casual'} onClick={() => setMode('casual')} title="休闲赛" desc="轻松对战" icon="🎮" />
+            <ModeButton active={mode === 'casual'} onClick={() => setMode('casual')} title="休���赛" desc="轻松对战" icon="🎮" />
           </div>
 
           {/* 出战角色 */}
@@ -192,6 +261,27 @@ export default function PVP() {
           <button className="btn btn-primary" style={{ width: '100%', height: 52, fontSize: 16 }} onClick={startQueue}>
             开始匹配
           </button>
+
+          <RiskPanel />
+
+          <SpectatePanel />
+
+          <TeamPanel />
+
+          <div className="panel" style={{ marginTop: 14, padding: 14 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10 }}>好友房间</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input aria-label="输入邀请码" value={inviteCode} onChange={(event) => setInviteCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))} placeholder="输入 8 位邀请码" maxLength={8} style={{ flex: 1, minWidth: 0 }} />
+              <button className="btn btn-ghost" disabled={inviteLoading || inviteCode.length !== 8} onClick={() => void joinInviteRoom()}>加入</button>
+            </div>
+            <button className="btn btn-ghost" style={{ width: '100%', marginTop: 8 }} disabled={inviteLoading} onClick={() => void createInviteRoom()}>{inviteCode.length === 8 ? `当前邀请码：${inviteCode}` : '创建好友房间'}</button>
+            {inviteMessage && <div role="status" style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{inviteMessage}</div>}
+          </div>
+
+          <div className="panel" style={{ marginTop: 20, padding: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><h3 style={{ fontSize: 14, fontWeight: 800 }}>赛季排行榜</h3><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>S1 · 前 5 · 赛季进行中</span></div>
+            {leaderboard.length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-mute)' }}>暂无公开战绩，成为第一位登榜者。</div> : leaderboard.map((entry, index) => <div key={entry.username} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: index ? '1px solid var(--border)' : undefined }}><strong style={{ width: 22, color: index < 3 ? 'var(--accent)' : 'var(--text-mute)' }}>#{index + 1}</strong><span style={{ flex: 1, fontWeight: 700 }}>{entry.username}</span><span style={{ color: 'var(--accent)' }}>{entry.rating} 分</span><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{entry.wins} 胜</span></div>)}
+          </div>
 
           {/* 段位阶梯 */}
           <div style={{ marginTop: 22 }}>
@@ -219,7 +309,7 @@ export default function PVP() {
           <div className="loading-spinner" style={{ margin: '0 auto 18px' }} />
           <div style={{ fontSize: 18, fontWeight: 800 }}>正在匹配对手...</div>
           <div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 6 }}>
-            {mode === 'ranked' ? '排位赛' : '休闲赛'} · 已等待 {queueTime}s
+            {mode === 'ranked' ? '排位赛' : '休���赛'} · 已等待 {queueTime}s
           </div>
           <button className="btn btn-ghost" style={{ marginTop: 20 }} onClick={cancelQueue}>取消匹配</button>
         </div>
@@ -242,7 +332,7 @@ export default function PVP() {
       )}
 
       {phase === 'battle' && opponent && (
-        <PvpArena />
+        <PvpArena matchId="local-practice" onReport={(reason) => { void fetch('/api/pvp/reports', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ matchId: 'local-practice', reason, details: '来自对局内举报入口' }) }) }} />
       )}
       {phase === 'result' && matchResult && (
         <div className="card" style={{ padding: 32, textAlign: 'center', animation: 'pop 0.4s ease' }}>
@@ -266,10 +356,80 @@ export default function PVP() {
               再来一局
             </button>
           </div>
+          <button className="btn btn-ghost" style={{ width: '100%', marginTop: 10 }} onClick={() => { void navigator.clipboard?.writeText(`FightCCF PvP 再战邀请：${opponent?.name ?? '当前对手'}`); setInviteCopied(true); }}>
+            {inviteCopied ? '邀请信息已复��' : '邀请对手再战'}
+          </button>
         </div>
       )}
     </div>
   );
+}
+
+function RiskPanel() {
+  const [events, setEvents] = useState<Array<{ event: { id: string; eventType: string; severity: string; createdAt: string; userId: string }; matchStatus?: string | null }>>([])
+  const [banMessage, setBanMessage] = useState('')
+  useEffect(() => { void fetch('/api/pvp/risk?limit=5', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ events?: typeof events }> : null).then((data) => { if (data?.events) setEvents(data.events) }).catch(() => undefined) }, [])
+  if (events.length === 0) return null
+  return <div className="panel" style={{ marginTop: 14, padding: 14, borderColor: '#f59e0b' }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}><strong>风控事件</strong><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>最近 5 条</span></div>{events.map(({ event, matchStatus }) => <div key={event.id} style={{ display: 'flex', gap: 8, padding: '7px 0', borderTop: '1px solid var(--border)', fontSize: 12 }}><span style={{ color: event.severity === 'high' ? '#fb7185' : '#f59e0b' }}>{event.severity}</span><span style={{ flex: 1 }}>{event.eventType}</span><span style={{ color: 'var(--text-mute)' }}>{matchStatus ?? '未知'}</span><button className="btn btn-ghost" style={{ fontSize: 10, padding: '4px 7px' }} onClick={() => { const reason = window.prompt('封禁原因'); if (!reason) return; void fetch('/api/pvp/risk', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'ban', userId: event.userId, reason }) }).then((response) => setBanMessage(response.ok ? '封禁记录已创建' : '封禁失败')) }}>封禁</button></div>)}{banMessage && <div role="status" style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{banMessage}</div>}</div>
+}
+
+function SpectatePanel() {
+  const [matches, setMatches] = useState<Array<{ id: string; status: string; createdAt: string }>>([])
+  const [watching, setWatching] = useState<string | null>(null)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    void fetch('/api/pvp/matches', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ matches?: typeof matches }> : null).then((data) => setMatches(data?.matches ?? [])).catch(() => undefined)
+  }, [])
+
+  const toggleWatch = async (matchId: string) => {
+    const intent = watching === matchId ? 'leave' : 'join'
+    const response = await fetch('/api/pvp/spectate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ matchId, intent }) })
+    const data = await response.json() as { error?: string; watching?: boolean }
+    if (!response.ok) { setMessage(data.error ?? '观战操作失败'); return }
+    setWatching(data.watching ? matchId : null); setMessage(data.watching ? '��进入观战席位，回放时间线将持续同步' : '已离开观战席位')
+  }
+
+  return <div className="panel" style={{ marginTop: 14, padding: 14 }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><strong>观战席</strong><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{matches.length} 场可观战</span></div>{matches.length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-mute)' }}>暂无进行中的对局</div> : matches.slice(0, 3).map((match) => <div key={match.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: '1px solid var(--border)' }}><span style={{ flex: 1, fontSize: 12 }}>对局 {match.id.slice(0, 8)} · {match.status === 'active' ? '进行中' : '等待中'}</span><button className="btn btn-ghost" onClick={() => void toggleWatch(match.id)}>{watching === match.id ? '离开' : '观战'}</button></div>)}{message && <div role="status" style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{message}</div>}</div>
+}
+
+function TeamPanel() {
+  const [name, setName] = useState('')
+  const [tag, setTag] = useState('')
+  const [message, setMessage] = useState('')
+  const [teams, setTeams] = useState<Array<{ team: { name: string; tag: string }; role: string }>>([])
+  const [invites, setInvites] = useState<Array<{ invite: { id: string }; team: { name: string; tag: string } }>>([])
+
+  const loadTeams = async () => {
+    const response = await fetch('/api/pvp/teams', { cache: 'no-store' })
+    if (!response.ok) return
+    const data = await response.json() as { memberships?: typeof teams; invites?: typeof invites }
+    setTeams(data.memberships ?? [])
+    setInvites(data.invites ?? [])
+  }
+
+  useEffect(() => { void loadTeams() }, [])
+
+  const createTeam = async () => {
+    const response = await fetch('/api/pvp/teams', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'create', name, tag }) })
+    const data = await response.json() as { error?: string; team?: { name: string; tag: string } }
+    setMessage(response.ok && data.team ? `战队 ${data.team.name} [${data.team.tag}] 已创建` : data.error ?? '创建失败')
+    if (response.ok) { setName(''); setTag(''); void loadTeams() }
+  }
+
+  const acceptInvite = async (inviteId: string) => {
+    const response = await fetch('/api/pvp/teams', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'accept', inviteId }) })
+    setMessage(response.ok ? '已加入战队' : '接受邀请失败')
+    if (response.ok) void loadTeams()
+  }
+
+  return <div className="panel" style={{ marginTop: 14, padding: 14 }}>
+    <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10 }}>战队 / 公会</div>
+    {teams.map(({ team, role }) => <div key={team.name} style={{ marginBottom: 8, fontSize: 12, color: 'var(--text-dim)' }}>当前战队：<strong style={{ color: 'var(--text)' }}>{team.name} [{team.tag}]</strong> · {role === 'owner' ? '队长' : '成员'}</div>)}
+    {invites.map(({ invite, team }) => <div key={invite.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 12 }}><span style={{ flex: 1 }}>收到加入 {team.name} [{team.tag}] 的邀请</span><button className="btn btn-ghost" onClick={() => void acceptInvite(invite.id)}>接受</button></div>)}
+    <div style={{ display: 'flex', gap: 8 }}><input aria-label="战队名称" value={name} onChange={(event) => setName(event.target.value)} placeholder="战队名称" maxLength={32} style={{ flex: 1, minWidth: 0 }} /><input aria-label="战队标签" value={tag} onChange={(event) => setTag(event.target.value.toUpperCase().slice(0, 5))} placeholder="TAG" maxLength={5} style={{ width: 76 }} /><button className="btn btn-ghost" disabled={!name.trim() || !tag.trim()} onClick={() => void createTeam()}>创建</button></div>
+    {message && <div role="status" style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{message}</div>}
+  </div>
 }
 
 function BattleBar({ label, value, color }: { label: string; value: number; color: string }) {
