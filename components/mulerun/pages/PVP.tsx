@@ -35,6 +35,7 @@ export default function PVP() {
   const [battleTime, setBattleTime] = useState(90);
   const [battleCombo, setBattleCombo] = useState(0);
   const [leaderboard, setLeaderboard] = useState<Array<{ username: string; rating: number; wins: number }>>([]);
+  const [seasonStats, setSeasonStats] = useState({ wins: 0, losses: 0, nextReward: '赛季参与奖励' });
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
@@ -44,8 +45,13 @@ export default function PVP() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetch('/api/pvp/leaderboard', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((data: { leaderboard?: Array<{ username: string; rating: number; wins: number }> } | null) => {
-      if (!cancelled && data?.leaderboard) setLeaderboard(data.leaderboard.slice(0, 5));
+    void Promise.all([
+      fetch('/api/pvp/leaderboard', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ leaderboard?: Array<{ username: string; rating: number; wins: number }> }> : null),
+      fetch('/api/pvp/rating', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ wins?: number; losses?: number; nextReward?: string }> : null),
+    ]).then(([leaderboardData, ratingData]) => {
+      if (cancelled) return;
+      if (leaderboardData?.leaderboard) setLeaderboard(leaderboardData.leaderboard.slice(0, 5));
+      if (ratingData) setSeasonStats({ wins: ratingData.wins ?? 0, losses: ratingData.losses ?? 0, nextReward: ratingData.nextReward ?? '赛季参与奖励' });
     }).catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
@@ -176,7 +182,8 @@ export default function PVP() {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 20, fontWeight: 900, color: rank.color }}>{rank.name}</div>
-          <div style={{ fontSize: 13, color: 'var(--text-dim)' }}>段位分 {rating}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-dim)' }}>段位分 {rating} · {seasonStats.wins} 胜 / {seasonStats.losses} 负</div>
+          <div style={{ fontSize: 12, color: 'var(--gold)', marginTop: 5 }}>赛季奖励：{seasonStats.nextReward}</div>
         </div>
       </div>
 
@@ -203,7 +210,7 @@ export default function PVP() {
           </button>
 
           <div className="panel" style={{ marginTop: 20, padding: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><h3 style={{ fontSize: 14, fontWeight: 800 }}>赛季排行榜</h3><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>S1 · 前 5</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><h3 style={{ fontSize: 14, fontWeight: 800 }}>赛季排行榜</h3><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>S1 · 前 5 · 赛季进行中</span></div>
             {leaderboard.length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-mute)' }}>暂无公开战绩，成为第一位登榜者。</div> : leaderboard.map((entry, index) => <div key={entry.username} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: index ? '1px solid var(--border)' : undefined }}><strong style={{ width: 22, color: index < 3 ? 'var(--accent)' : 'var(--text-mute)' }}>#{index + 1}</strong><span style={{ flex: 1, fontWeight: 700 }}>{entry.username}</span><span style={{ color: 'var(--accent)' }}>{entry.rating} 分</span><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{entry.wins} 胜</span></div>)}
           </div>
 
