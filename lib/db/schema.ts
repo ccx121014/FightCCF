@@ -36,6 +36,9 @@ export const pvpSpectators = pgTable('pvp_spectators', {
 export const pvpActions = pgTable('pvp_actions', {
   id: text('id').primaryKey(), matchId: text('match_id').notNull(), userId: text('user_id').notNull(), action: text('action').notNull(), seq: integer('seq').notNull(), createdAt: timestamp('created_at').notNull().defaultNow(),
 })
+export const pvpSeasonRewards = pgTable('pvp_season_rewards', {
+  id: text('id').primaryKey(), userId: text('user_id').notNull(), season: text('season').notNull(), rewardKey: text('reward_key').notNull(), status: text('status').notNull().default('available'), claimedAt: timestamp('claimed_at'), createdAt: timestamp('created_at').notNull().defaultNow(),
+})
 export const pvpRatings = pgTable('pvp_ratings', {
   userId: text('user_id').primaryKey(), rating: integer('rating').notNull().default(1200), wins: integer('wins').notNull().default(0), losses: integer('losses').notNull().default(0), season: text('season').notNull().default('S1'), updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })

@@ -40,6 +40,8 @@ export default function PVP() {
   const [inviteCode, setInviteCode] = useState('');
   const [inviteMessage, setInviteMessage] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [seasonReward, setSeasonReward] = useState<{ eligible: boolean; status: string } | null>(null);
+  const [rewardMessage, setRewardMessage] = useState('');
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
@@ -52,10 +54,12 @@ export default function PVP() {
     void Promise.all([
       fetch('/api/pvp/leaderboard', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ leaderboard?: Array<{ username: string; rating: number; wins: number }> }> : null),
       fetch('/api/pvp/rating', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ wins?: number; losses?: number; nextReward?: string; progress?: number; nextMilestone?: string }> : null),
-    ]).then(([leaderboardData, ratingData]) => {
+      fetch('/api/pvp/rewards', { cache: 'no-store' }).then((response) => response.ok ? response.json() as Promise<{ eligible: boolean; reward?: { status: string } | null }> : null),
+    ]).then(([leaderboardData, ratingData, rewardData]) => {
       if (cancelled) return;
       if (leaderboardData?.leaderboard) setLeaderboard(leaderboardData.leaderboard.slice(0, 5));
       if (ratingData) setSeasonStats({ wins: ratingData.wins ?? 0, losses: ratingData.losses ?? 0, nextReward: ratingData.nextReward ?? '赛季参与奖励', progress: ratingData.progress ?? 0, nextMilestone: ratingData.nextMilestone ?? '再赢 10 场领取参与奖励' });
+      if (rewardData) setSeasonReward({ eligible: rewardData.eligible, status: rewardData.reward?.status ?? 'available' });
     }).catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
@@ -212,6 +216,8 @@ export default function PVP() {
           <div style={{ fontSize: 12, color: 'var(--gold)', marginTop: 5 }}>赛季奖励：{seasonStats.nextReward}</div>
           <div style={{ marginTop: 8, height: 6, borderRadius: 99, background: 'var(--bg-3)', overflow: 'hidden' }}><div style={{ width: `${seasonStats.progress}%`, height: '100%', background: 'var(--gold)', transition: 'width .3s ease' }} /></div>
           <div style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>{seasonStats.nextMilestone}</div>
+          {seasonReward && <button className="btn btn-ghost" style={{ marginTop: 8, fontSize: 11 }} disabled={!seasonReward.eligible || seasonReward.status === 'claimed'} onClick={() => { void fetch('/api/pvp/rewards', { method: 'POST' }).then(async (response) => { const data = await response.json() as { reward?: { status: string }; error?: string }; if (!response.ok) { setRewardMessage(data.error ?? '领取失败'); return } setSeasonReward({ eligible: true, status: data.reward?.status ?? 'claimed' }); setRewardMessage('赛季奖励已领取') }) }}>{seasonReward.status === 'claimed' ? '奖励已领取' : seasonReward.eligible ? '领取赛季奖励' : '完成 10 胜解锁奖励'}</button>}
+          {rewardMessage && <div role="status" style={{ fontSize: 11, color: 'var(--text-mute)', marginTop: 4 }}>{rewardMessage}</div>}
         </div>
       </div>
 
