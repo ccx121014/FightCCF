@@ -34,11 +34,13 @@ export default function PVP() {
   const [battleHp, setBattleHp] = useState({ mine: 100, opponent: 100 });
   const [battleTime, setBattleTime] = useState(90);
   const [battleCombo, setBattleCombo] = useState(0);
+  const [roomCode, setRoomCode] = useState('等待创建');
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
   const matchTimerRef = useRef<number>(0);
   const finishLockRef = useRef(false);
+  const queueRequestRef = useRef(0);
 
   const rank = getRankByRating(rating);
 
@@ -61,6 +63,9 @@ export default function PVP() {
   }, []);
 
   function startQueue() {
+    const requestId = ++queueRequestRef.current;
+    const nextRoomCode = `FC-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    setRoomCode(nextRoomCode);
     setPhase('queue');
     setQueueTime(0);
     queueTimerRef.current = window.setInterval(() => setQueueTime((t) => t + 1), 1000);
@@ -71,28 +76,29 @@ export default function PVP() {
       serviceRef.current = svc;
       svc.connect()
         .then(() => {
+          if (queueRequestRef.current !== requestId) return;
           svc.joinQueue(user.id, user.username, rating, mode, selectedId);
         })
         .catch(() => {
-          // 连接失败退回本地模拟
-          simulateMatch();
+          if (queueRequestRef.current === requestId) simulateMatch(requestId);
         });
       svc.on((msg) => {
         if (msg.type === 'match_start') {
           const p = msg.payload as { opponent: OpponentInfo };
-          onMatched(p.opponent);
+          if (queueRequestRef.current === requestId) onMatched(p.opponent);
         }
       });
       // 超时保护：3-5 秒无匹配则本地模拟
-      matchTimerRef.current = window.setTimeout(simulateMatch, 4000);
+      matchTimerRef.current = window.setTimeout(() => simulateMatch(requestId), 4000);
     } else {
       // 离线：模拟匹配
       const delay = 1500 + Math.random() * 2000;
-      matchTimerRef.current = window.setTimeout(simulateMatch, delay);
+      matchTimerRef.current = window.setTimeout(() => simulateMatch(requestId), delay);
     }
   }
 
-  function simulateMatch() {
+  function simulateMatch(requestId: number) {
+    if (queueRequestRef.current !== requestId || phase !== 'queue') return;
     clearTimeout(matchTimerRef.current);
     // 生成一个 rating 相近的 AI 对手
     const range = rank.matchRange;
@@ -113,6 +119,7 @@ export default function PVP() {
   }
 
   function cancelQueue() {
+    queueRequestRef.current += 1;
     clearInterval(queueTimerRef.current);
     clearTimeout(matchTimerRef.current);
     serviceRef.current?.leaveQueue();
@@ -224,6 +231,9 @@ export default function PVP() {
           <div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 6 }}>
             {mode === 'ranked' ? '排位赛' : '休闲赛'} · 已等待 {queueTime}s
           </div>
+          <div style={{ margin: '14px auto 0', padding: '8px 14px', width: 'fit-content', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--accent)', fontFamily: 'monospace', letterSpacing: 1.5, fontWeight: 800 }}>
+            房间码 {roomCode}
+          </div>
           <button className="btn btn-ghost" style={{ marginTop: 20 }} onClick={cancelQueue}>取消匹配</button>
         </div>
       )}
@@ -231,7 +241,7 @@ export default function PVP() {
       {phase === 'matched' && opponent && (
         <div className="card" style={{ padding: 24, animation: 'pop 0.4s ease' }}>
           <div style={{ textAlign: 'center', fontSize: 14, color: 'var(--text-dim)', fontWeight: 700, marginBottom: 16 }}>
-            匹配成功!
+            匹配成功 · 房间 {roomCode}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
             <FighterSide name={user?.username ?? '你'} rating={rating} charId={selectedId} />
