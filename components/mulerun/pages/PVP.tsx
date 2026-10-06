@@ -37,6 +37,9 @@ export default function PVP() {
   const [leaderboard, setLeaderboard] = useState<Array<{ username: string; rating: number; wins: number }>>([]);
   const [seasonStats, setSeasonStats] = useState({ wins: 0, losses: 0, nextReward: '赛季参与奖励', progress: 0, nextMilestone: '再赢 10 场领取参与奖励' });
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
@@ -74,6 +77,28 @@ export default function PVP() {
       serviceRef.current?.disconnect();
     };
   }, []);
+
+  async function createInviteRoom() {
+    setInviteLoading(true); setInviteMessage('');
+    try {
+      const response = await fetch('/api/pvp/invites', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'create' }) });
+      const data = await response.json() as { invite?: { inviteCode: string }; error?: string };
+      if (!response.ok || !data.invite) throw new Error(data.error ?? '创建房间失败');
+      setInviteCode(data.invite.inviteCode); setInviteMessage('房间已创建，邀请码 30 分钟内有效');
+    } catch (error) { setInviteMessage(error instanceof Error ? error.message : '创建房间失败'); }
+    finally { setInviteLoading(false); }
+  }
+
+  async function joinInviteRoom() {
+    setInviteLoading(true); setInviteMessage('');
+    try {
+      const response = await fetch('/api/pvp/invites', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'join', inviteCode }) });
+      const data = await response.json() as { match?: { id: string }; error?: string };
+      if (!response.ok || !data.match) throw new Error(data.error ?? '加入房间失败');
+      setInviteMessage('已加入房间，可以开始对战'); setOpponent({ name: '好友房间对手', rating, characterId: selectedId }); setPhase('matched');
+    } catch (error) { setInviteMessage(error instanceof Error ? error.message : '加入房间失败'); }
+    finally { setInviteLoading(false); }
+  }
 
   function startQueue() {
     setPhase('queue');
@@ -212,6 +237,16 @@ export default function PVP() {
             开始匹配
           </button>
 
+          <div className="panel" style={{ marginTop: 14, padding: 14 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10 }}>好友房间</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input aria-label="输入邀请码" value={inviteCode} onChange={(event) => setInviteCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))} placeholder="输入 8 位邀请码" maxLength={8} style={{ flex: 1, minWidth: 0 }} />
+              <button className="btn btn-ghost" disabled={inviteLoading || inviteCode.length !== 8} onClick={() => void joinInviteRoom()}>加入</button>
+            </div>
+            <button className="btn btn-ghost" style={{ width: '100%', marginTop: 8 }} disabled={inviteLoading} onClick={() => void createInviteRoom()}>{inviteCode.length === 8 ? `当前邀请码：${inviteCode}` : '创建好友房间'}</button>
+            {inviteMessage && <div role="status" style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{inviteMessage}</div>}
+          </div>
+
           <div className="panel" style={{ marginTop: 20, padding: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><h3 style={{ fontSize: 14, fontWeight: 800 }}>赛季排行榜</h3><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>S1 · 前 5 · 赛季进行中</span></div>
             {leaderboard.length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-mute)' }}>暂无公开战绩，成为第一位登榜者。</div> : leaderboard.map((entry, index) => <div key={entry.username} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: index ? '1px solid var(--border)' : undefined }}><strong style={{ width: 22, color: index < 3 ? 'var(--accent)' : 'var(--text-mute)' }}>#{index + 1}</strong><span style={{ flex: 1, fontWeight: 700 }}>{entry.username}</span><span style={{ color: 'var(--accent)' }}>{entry.rating} 分</span><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{entry.wins} 胜</span></div>)}
@@ -291,7 +326,7 @@ export default function PVP() {
             </button>
           </div>
           <button className="btn btn-ghost" style={{ width: '100%', marginTop: 10 }} onClick={() => { void navigator.clipboard?.writeText(`FightCCF PvP 再战邀请：${opponent?.name ?? '当前对手'}`); setInviteCopied(true); }}>
-            {inviteCopied ? '邀请信息已复制' : '邀请对手再战'}
+            {inviteCopied ? '邀请信息已复��' : '邀请对手再战'}
           </button>
         </div>
       )}
