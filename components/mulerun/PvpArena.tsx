@@ -18,6 +18,8 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   const [reportSent, setReportSent] = useState(false)
   const [latency, setLatency] = useState<number | null>(null)
   const reconnectAttempts = useRef(0)
+  const pendingInputs = useRef<Array<{ seq: number; action: string; dx: number; jump: boolean }>>([])
+  const inputSeq = useRef(0)
 
   function recordEvent(label: string) {
     setTimeline((events) => [`${new Date().toLocaleTimeString('zh-CN', { minute: '2-digit', second: '2-digit' })} · ${label}`, ...events].slice(0, 8))
@@ -32,7 +34,22 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
       try { message = JSON.parse(event.data) as typeof message } catch { setError('收到无效的实时消息'); return }
       if (message.type === 'queued') setPlayerId(message.playerId)
       if (message.type === 'matched') { setRoomId(message.roomId); setPlayerId(message.playerId); setStatus('对手已连接 · 开始战斗'); if (message.snapshot) setFighters(message.snapshot) }
-      if (message.type === 'state' && message.snapshot) setFighters(message.snapshot)
+      if (message.type === 'state' && message.snapshot) {
+        const acknowledgedSeq = (message as typeof message & { ack?: number }).ack ?? inputSeq.current
+        pendingInputs.current = pendingInputs.current.filter((input) => input.seq > acknowledgedSeq)
+        setFighters((current) => {
+          const serverSnapshot = message.snapshot!
+          return serverSnapshot.map((fighter) => {
+            if (fighter.id !== playerId) return fighter
+            return pendingInputs.current.reduce((next, input) => ({
+              ...next,
+              x: Math.max(0, Math.min(980, next.x + input.dx * 8)),
+              y: input.jump ? Math.min(180, next.y + 16) : next.y,
+              action: input.action,
+            }), fighter)
+          })
+        })
+      }
       if (message.type === 'opponent_left') setStatus('对手已断线')
     }
     socket.onerror = () => { setNetworkState('离线'); setError('WebSocket 未连接，请启动 PVP 实时服务'); setStatus('离线') }
@@ -63,8 +80,11 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
 
   function send(action: string, dx = 0, jump = false) {
     recordEvent(action === 'attack' ? '发动连击' : action === 'skill' ? '释放算法技' : action === 'jump' ? '跳跃' : dx < 0 ? '向左移动' : dx > 0 ? '向右移动' : '操作')
+    const seq = ++inputSeq.current
+    pendingInputs.current.push({ seq, action, dx, jump })
+    setFighters((current) => current.map((fighter) => fighter.id === playerId ? { ...fighter, x: Math.max(0, Math.min(980, fighter.x + dx * 8)), y: jump ? Math.min(180, fighter.y + 16) : fighter.y, action } : fighter))
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN || !roomId) return
-    socketRef.current.send(JSON.stringify({ type: 'input', roomId, action, dx, jump }))
+    socketRef.current.send(JSON.stringify({ type: 'input', roomId, action, dx, jump, seq, clientTime: Date.now() }))
   }
 
   const mine = fighters.find((fighter) => fighter.id === playerId)
