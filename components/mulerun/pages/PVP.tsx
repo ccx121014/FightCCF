@@ -340,12 +340,39 @@ function TeamPanel() {
   const [name, setName] = useState('')
   const [tag, setTag] = useState('')
   const [message, setMessage] = useState('')
+  const [teams, setTeams] = useState<Array<{ team: { name: string; tag: string }; role: string }>>([])
+  const [invites, setInvites] = useState<Array<{ invite: { id: string }; team: { name: string; tag: string } }>>([])
+
+  const loadTeams = async () => {
+    const response = await fetch('/api/pvp/teams', { cache: 'no-store' })
+    if (!response.ok) return
+    const data = await response.json() as { memberships?: typeof teams; invites?: typeof invites }
+    setTeams(data.memberships ?? [])
+    setInvites(data.invites ?? [])
+  }
+
+  useEffect(() => { void loadTeams() }, [])
+
   const createTeam = async () => {
     const response = await fetch('/api/pvp/teams', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'create', name, tag }) })
     const data = await response.json() as { error?: string; team?: { name: string; tag: string } }
     setMessage(response.ok && data.team ? `战队 ${data.team.name} [${data.team.tag}] 已创建` : data.error ?? '创建失败')
+    if (response.ok) { setName(''); setTag(''); void loadTeams() }
   }
-  return <div className="panel" style={{ marginTop: 14, padding: 14 }}><div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10 }}>战队 / 公会</div><div style={{ display: 'flex', gap: 8 }}><input aria-label="战队名称" value={name} onChange={(event) => setName(event.target.value)} placeholder="战队名称" maxLength={32} style={{ flex: 1, minWidth: 0 }} /><input aria-label="战队标签" value={tag} onChange={(event) => setTag(event.target.value.toUpperCase().slice(0, 5))} placeholder="TAG" maxLength={5} style={{ width: 76 }} /><button className="btn btn-ghost" disabled={!name.trim() || !tag.trim()} onClick={() => void createTeam()}>创建</button></div>{message && <div role="status" style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{message}</div>}</div>
+
+  const acceptInvite = async (inviteId: string) => {
+    const response = await fetch('/api/pvp/teams', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'accept', inviteId }) })
+    setMessage(response.ok ? '已加入战队' : '接受邀请失败')
+    if (response.ok) void loadTeams()
+  }
+
+  return <div className="panel" style={{ marginTop: 14, padding: 14 }}>
+    <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10 }}>战队 / 公会</div>
+    {teams.map(({ team, role }) => <div key={team.name} style={{ marginBottom: 8, fontSize: 12, color: 'var(--text-dim)' }}>当前战队：<strong style={{ color: 'var(--text)' }}>{team.name} [{team.tag}]</strong> · {role === 'owner' ? '队长' : '成员'}</div>)}
+    {invites.map(({ invite, team }) => <div key={invite.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 12 }}><span style={{ flex: 1 }}>收到加入 {team.name} [{team.tag}] 的邀请</span><button className="btn btn-ghost" onClick={() => void acceptInvite(invite.id)}>接受</button></div>)}
+    <div style={{ display: 'flex', gap: 8 }}><input aria-label="战队名称" value={name} onChange={(event) => setName(event.target.value)} placeholder="战队名称" maxLength={32} style={{ flex: 1, minWidth: 0 }} /><input aria-label="战队标签" value={tag} onChange={(event) => setTag(event.target.value.toUpperCase().slice(0, 5))} placeholder="TAG" maxLength={5} style={{ width: 76 }} /><button className="btn btn-ghost" disabled={!name.trim() || !tag.trim()} onClick={() => void createTeam()}>创建</button></div>
+    {message && <div role="status" style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{message}</div>}
+  </div>
 }
 
 function BattleBar({ label, value, color }: { label: string; value: number; color: string }) {
