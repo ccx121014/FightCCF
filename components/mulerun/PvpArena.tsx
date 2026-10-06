@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-type Fighter = { id: string; x: number; y: number; hp: number; facing: 1 | -1; action: string; combo: number }
+type FighterState = 'idle' | 'run' | 'jump' | 'land' | 'hurt' | 'stun' | 'knockback' | 'down' | 'victory' | 'defeat'
+type AttackPhase = 'none' | 'startup' | 'active' | 'recovery' | 'cancel'
+type Fighter = { id: string; x: number; y: number; hp: number; facing: 1 | -1; action: string; combo: number; state?: FighterState; attackPhase?: AttackPhase; character?: '拳师' | '剑士' | '术士' | '游侠' }
 type ArenaProps = { wsUrl?: string; matchId?: string; onReport?: (reason: string) => void }
 
 export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://localhost:8787', matchId = 'local-practice', onReport }: ArenaProps) {
@@ -21,6 +23,11 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   const pendingInputs = useRef<Array<{ seq: number; action: string; dx: number; jump: boolean }>>([])
   const inputSeq = useRef(0)
   const streamRef = useRef<EventSource | null>(null)
+  const [effects, setEffects] = useState<Array<{ id: number; type: 'hit' | 'slash' | 'burst' | 'shield' | 'critical'; x: number; y: number; text?: string }>>([])
+  const [cameraPulse, setCameraPulse] = useState(false)
+  const [attackPhase, setAttackPhase] = useState<AttackPhase>('none')
+  const comboTimer = useRef<number | null>(null)
+  const effectId = useRef(0)
 
   function recordEvent(label: string) {
     setTimeline((events) => [`${new Date().toLocaleTimeString('zh-CN', { minute: '2-digit', second: '2-digit' })} · ${label}`, ...events].slice(0, 8))
@@ -88,8 +95,33 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
 
   useEffect(() => { if (!roomId) return; const interval = window.setInterval(() => setTimer((value) => Math.max(0, value - 1)), 1000); return () => window.clearInterval(interval) }, [roomId])
 
+  function playImpactSound(kind: 'step' | 'hit' | 'skill' | 'hurt') {
+    if (typeof window === 'undefined') return
+    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!AudioContextClass) return
+    const context = new AudioContextClass(); const oscillator = context.createOscillator(); const gain = context.createGain()
+    oscillator.type = kind === 'skill' ? 'sawtooth' : 'square'; oscillator.frequency.value = kind === 'hit' ? 180 : kind === 'hurt' ? 90 : kind === 'skill' ? 420 : 240
+    gain.gain.setValueAtTime(0.035, context.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + (kind === 'skill' ? 0.24 : 0.09)); oscillator.connect(gain); gain.connect(context.destination); oscillator.start(); oscillator.stop(context.currentTime + 0.25)
+  }
+
+  function spawnEffect(type: 'hit' | 'slash' | 'burst' | 'shield' | 'critical', text?: string) {
+    const target = opponent ?? mine
+    if (!target) return
+    const id = ++effectId.current
+    setEffects((current) => [...current, { id, type, x: target.x, y: target.y + 50, text }])
+    window.setTimeout(() => setEffects((current) => current.filter((effect) => effect.id !== id)), type === 'critical' ? 650 : 420)
+  }
+
   function send(action: string, dx = 0, jump = false) {
     recordEvent(action === 'attack' ? '发动连击' : action === 'skill' ? '释放算法技' : action === 'jump' ? '跳跃' : dx < 0 ? '向左移动' : dx > 0 ? '向右移动' : '操作')
+    if (action === 'attack' || action === 'heavy' || action === 'skill' || action === 'ultimate') {
+      setAttackPhase('startup'); playImpactSound(action === 'skill' || action === 'ultimate' ? 'skill' : 'step')
+      window.setTimeout(() => setAttackPhase('active'), 130)
+      window.setTimeout(() => { setAttackPhase('recovery'); spawnEffect(action === 'ultimate' ? 'critical' : action === 'skill' ? 'burst' : action === 'heavy' ? 'slash' : 'hit', action === 'ultimate' ? '终结' : action === 'skill' ? 'ALGO!' : undefined); playImpactSound('hit'); setCameraPulse(true); window.setTimeout(() => setCameraPulse(false), 180) }, action === 'skill' ? 260 : 180)
+      window.setTimeout(() => setAttackPhase('cancel'), 360)
+      if (comboTimer.current) window.clearTimeout(comboTimer.current)
+      comboTimer.current = window.setTimeout(() => setAttackPhase('none'), 520)
+    } else if (action === 'jump') { playImpactSound('step'); setAttackPhase('none') } else if (dx !== 0) playImpactSound('step')
     const seq = ++inputSeq.current
     pendingInputs.current.push({ seq, action, dx, jump })
     setFighters((current) => current.map((fighter) => fighter.id === playerId ? { ...fighter, x: Math.max(0, Math.min(980, fighter.x + dx * 8)), y: jump ? Math.min(180, fighter.y + 16) : fighter.y, action } : fighter))
@@ -102,13 +134,14 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
   return <section className="mulerun-pvp-arena">
     <header className="arena-topbar"><span>{status}</span><span style={{ fontSize: 11, color: networkState === '在线' ? '#4ade80' : '#f59e0b' }}>网络 {networkState}{latency !== null ? ` · ${latency}ms` : ''}</span><strong>{String(Math.floor(timer / 60)).padStart(2, '0')}:{String(timer % 60).padStart(2, '0')}</strong></header>
     {error && <p className="arena-error">{error}</p>}
-    <div className="arena-stage" role="application" aria-label="真人算法竞技场">
+    <div className={`arena-stage ${cameraPulse ? 'camera-pulse' : ''}`} role="application" aria-label="真人算法竞技场">
       <div className="arena-grid" />
-      {opponent && <div className="arena-fighter enemy" style={{ left: `${opponent.x / 10}%`, bottom: `${opponent.y + 32}px`, willChange: 'left, bottom' }}><span className="algorithm-core">∇</span><b>{opponent.hp}</b></div>}
-      {mine && <div className="arena-fighter player" style={{ left: `${mine.x / 10}%`, bottom: `${mine.y + 32}px`, willChange: 'left, bottom' }}><span className="algorithm-core">λ</span><b>{mine.hp}</b></div>}
+      {effects.map((effect) => <div key={effect.id} className={`combat-effect effect-${effect.type}`} style={{ left: `${effect.x / 10}%`, bottom: `${effect.y}px` }}>{effect.type === 'critical' ? <strong>暴击 {effect.text}</strong> : effect.type === 'shield' ? '护盾破碎' : effect.type === 'slash' ? '╱' : effect.type === 'burst' ? '✦' : '✹'}</div>)}
+      {opponent && <div className={`arena-fighter enemy state-${opponent.state ?? 'idle'} phase-${attackPhase}`} style={{ left: `${opponent.x / 10}%`, bottom: `${opponent.y + 32}px`, willChange: 'left, bottom' }}><span className="algorithm-core">{opponent.character === '剑士' ? '⚔' : opponent.character === '术士' ? '◇' : '∇'}</span><b>{opponent.hp}</b></div>}
+      {mine && <div className={`arena-fighter player state-${mine.state ?? 'idle'} phase-${attackPhase}`} style={{ left: `${mine.x / 10}%`, bottom: `${mine.y + 32}px`, willChange: 'left, bottom' }}><span className="algorithm-core">{mine.character === '剑士' ? '⚔' : mine.character === '术士' ? '◇' : 'λ'}</span><b>{mine.hp}</b><i>{attackPhase !== 'none' ? attackPhase === 'active' ? '命中帧' : attackPhase === 'startup' ? '前摇' : attackPhase === 'recovery' ? '后摇' : '取消窗' : mine.state === 'hurt' ? '受击' : mine.state === 'down' ? '倒地' : ''}</i></div>}
     </div>
     <div className="arena-hud"><div><span>我方</span><progress value={mine?.hp ?? 100} max="100" /></div><div className="combo">COMBO {mine?.combo ?? 0}</div><div><span>对手</span><progress value={opponent?.hp ?? 100} max="100" /></div></div>
-    <div className="arena-controls"><button onClick={() => send('move', -1)}>←</button><button onClick={() => send('jump', 0, true)}>跳跃</button><button className="attack" onClick={() => send('attack')}>连击</button><button className="skill" onClick={() => send('skill')}>算法技</button><button onClick={() => send('move', 1)}>→</button></div>
+    <div className="arena-controls"><button aria-label="向左移动" onClick={() => send('move', -1)}>←</button><button onClick={() => send('jump', 0, true)}>跳跃</button><button className="attack" onClick={() => send('attack')}>轻攻击</button><button className="attack heavy" onClick={() => send('heavy')}>重攻击</button><button className="skill" onClick={() => send('skill')}>专属技</button><button className="skill ultimate" onClick={() => send('ultimate')}>终极技</button><button aria-label="向右移动" onClick={() => send('move', 1)}>→</button></div>
     {timeline.length > 0 && <div style={{ marginTop: 12, padding: 10, border: '1px solid var(--border)', borderRadius: 10, fontSize: 11, color: 'var(--text-dim)' }}><strong>关键操作</strong>{timeline.map((event) => <div key={event}>{event}</div>)}</div>}
     <button className="btn btn-ghost" style={{ width: '100%', marginTop: 10, color: '#fb7185' }} disabled={reportSent} onClick={() => { onReport?.('作弊'); setReportSent(true) }}>{reportSent ? '举报已提交' : '举报对手'}</button>
   </section>
