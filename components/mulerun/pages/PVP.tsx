@@ -42,7 +42,8 @@ export default function PVP() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [seasonReward, setSeasonReward] = useState<{ eligible: boolean; status: string } | null>(null);
   const [rewardMessage, setRewardMessage] = useState('');
-  const [pendingInvites, setPendingInvites] = useState<Array<{ id: string; inviteCode: string; expiresAt: string }>>([]);
+  const [pendingInvites, setPendingInvites] = useState<Array<{ id: string; inviteCode: string; expiresAt: string; matchId: string }>>([]);
+  const [inviteAction, setInviteAction] = useState<string | null>(null);
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
@@ -71,7 +72,7 @@ export default function PVP() {
       try {
         const response = await fetch('/api/pvp/invites', { cache: 'no-store' });
         if (!response.ok || cancelled) return;
-        const data = await response.json() as { invites?: Array<{ id: string; inviteCode: string; expiresAt: string }> };
+        const data = await response.json() as { invites?: Array<{ id: string; inviteCode: string; expiresAt: string; matchId: string }> };
         setPendingInvites(data.invites ?? []);
       } catch { /* 邀请通知失败不影响对局 */ }
     };
@@ -158,7 +159,7 @@ export default function PVP() {
     const range = rank.matchRange;
     const oppRating = Math.max(0, rating + Math.round((Math.random() - 0.5) * range * 2));
     const oppChar = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
-    const names = ['AlgoMaster', '常数优化', 'DP_God', '打表选手', '暴力出奇迹', '卡常怪', 'OI退役选手', 'ACMer'];
+    const names = ['AlgoMaster', '常数优���', 'DP_God', '打表选手', '暴力出奇迹', '卡常怪', 'OI退役选手', 'ACMer'];
     onMatched({
       name: names[Math.floor(Math.random() * names.length)] + Math.floor(Math.random() * 99),
       rating: oppRating,
@@ -239,7 +240,7 @@ export default function PVP() {
 
       {phase === 'lobby' && (
         <>
-  {pendingInvites.length > 0 && <div className="panel" role="status" style={{ marginBottom: 14, padding: 14, borderColor: 'var(--accent)' }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}><strong>新的对局邀请</strong><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{pendingInvites.length} 条待处理</span></div>{pendingInvites.slice(0, 3).map((invite) => <div key={invite.id} style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 8 }}><span style={{ flex: 1, fontSize: 12 }}>好友邀请你加入房间</span><button className="btn btn-primary" onClick={() => { setInviteCode(invite.inviteCode); setInviteMessage('邀请码已填入，请确认加入'); setPendingInvites((current) => current.filter((item) => item.id !== invite.id)) }}>查看邀请</button></div>)}</div>}
+  {pendingInvites.length > 0 && <div className="panel" role="status" style={{ marginBottom: 14, padding: 14, borderColor: 'var(--accent)' }}><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}><strong>新的对局邀请</strong><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{pendingInvites.length} 条待处理</span></div>{pendingInvites.slice(0, 3).map((invite) => <div key={invite.id} style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 8 }}><span style={{ flex: 1, fontSize: 12 }}>好友邀请你加入房间</span><button className="btn btn-primary" disabled={inviteAction === invite.id} onClick={async () => { setInviteAction(invite.id); setInviteMessage('正在加入房间…'); try { const response = await fetch('/api/pvp/invites', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'join', inviteCode: invite.inviteCode }) }); const data = await response.json() as { match?: { id: string }; error?: string }; if (!response.ok || !data.match) throw new Error(data.error ?? '加入失败'); setInviteMessage('已接受邀请，正在进入对局'); setPendingInvites((current) => current.filter((item) => item.id !== invite.id)); setPhase('matched'); } catch (error) { setInviteMessage(error instanceof Error ? error.message : '加入失败'); } finally { setInviteAction(null); } }}>接受并加入</button></div>)}{inviteMessage && <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{inviteMessage}</div>}</div>}
 
   {/* 模式选择 */}
   <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
@@ -385,7 +386,7 @@ function SpectatePanel() {
     const response = await fetch('/api/pvp/spectate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ matchId, intent }) })
     const data = await response.json() as { error?: string; watching?: boolean }
     if (!response.ok) { setMessage(data.error ?? '观战操作失败'); return }
-    setWatching(data.watching ? matchId : null); setMessage(data.watching ? '已进入观战席位，回放时间线将持续同步' : '已离开观战席位')
+    setWatching(data.watching ? matchId : null); setMessage(data.watching ? '��进入观战席位，回放时间线将持续同步' : '已离开观战席位')
   }
 
   return <div className="panel" style={{ marginTop: 14, padding: 14 }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><strong>观战席</strong><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{matches.length} 场可观战</span></div>{matches.length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-mute)' }}>暂无进行中的对局</div> : matches.slice(0, 3).map((match) => <div key={match.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: '1px solid var(--border)' }}><span style={{ flex: 1, fontSize: 12 }}>对局 {match.id.slice(0, 8)} · {match.status === 'active' ? '进行中' : '等待中'}</span><button className="btn btn-ghost" onClick={() => void toggleWatch(match.id)}>{watching === match.id ? '离开' : '观战'}</button></div>)}{message && <div role="status" style={{ marginTop: 8, fontSize: 12, color: 'var(--text-dim)' }}>{message}</div>}</div>
