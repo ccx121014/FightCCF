@@ -27,6 +27,9 @@ export const pvpMatches = pgTable('pvp_matches', {
 export const pvpActions = pgTable('pvp_actions', {
   id: text('id').primaryKey(), matchId: text('match_id').notNull(), userId: text('user_id').notNull(), action: text('action').notNull(), seq: integer('seq').notNull(), createdAt: timestamp('created_at').notNull().defaultNow(),
 })
+export const pvpRatings = pgTable('pvp_ratings', {
+  userId: text('user_id').primaryKey(), rating: integer('rating').notNull().default(1200), wins: integer('wins').notNull().default(0), losses: integer('losses').notNull().default(0), season: text('season').notNull().default('S1'), updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
 export const pvpReports = pgTable('pvp_reports', {
   id: text('id').primaryKey(), matchId: text('match_id').notNull(), reporterId: text('reporter_id').notNull(), reason: text('reason').notNull(), details: text('details').notNull().default(''), createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({ matchIdx: index('pvp_reports_match_idx').on(table.matchId), reporterIdx: index('pvp_reports_reporter_idx').on(table.reporterId) }))

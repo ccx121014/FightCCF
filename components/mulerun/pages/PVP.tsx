@@ -34,12 +34,21 @@ export default function PVP() {
   const [battleHp, setBattleHp] = useState({ mine: 100, opponent: 100 });
   const [battleTime, setBattleTime] = useState(90);
   const [battleCombo, setBattleCombo] = useState(0);
+  const [leaderboard, setLeaderboard] = useState<Array<{ username: string; rating: number; wins: number }>>([]);
 
   const serviceRef = useRef<PVPService | null>(null);
   const queueTimerRef = useRef<number>(0);
   const matchTimerRef = useRef<number>(0);
 
   const rank = getRankByRating(rating);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/pvp/leaderboard', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((data: { leaderboard?: Array<{ username: string; rating: number; wins: number }> } | null) => {
+      if (!cancelled && data?.leaderboard) setLeaderboard(data.leaderboard.slice(0, 5));
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (phase !== 'battle') return;
@@ -192,6 +201,11 @@ export default function PVP() {
           <button className="btn btn-primary" style={{ width: '100%', height: 52, fontSize: 16 }} onClick={startQueue}>
             开始匹配
           </button>
+
+          <div className="panel" style={{ marginTop: 20, padding: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}><h3 style={{ fontSize: 14, fontWeight: 800 }}>赛季排行榜</h3><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>S1 · 前 5</span></div>
+            {leaderboard.length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-mute)' }}>暂无公开战绩，成为第一位登榜者。</div> : leaderboard.map((entry, index) => <div key={entry.username} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: index ? '1px solid var(--border)' : undefined }}><strong style={{ width: 22, color: index < 3 ? 'var(--accent)' : 'var(--text-mute)' }}>#{index + 1}</strong><span style={{ flex: 1, fontWeight: 700 }}>{entry.username}</span><span style={{ color: 'var(--accent)' }}>{entry.rating} 分</span><span style={{ fontSize: 11, color: 'var(--text-mute)' }}>{entry.wins} 胜</span></div>)}
+          </div>
 
           {/* 段位阶梯 */}
           <div style={{ marginTop: 22 }}>
