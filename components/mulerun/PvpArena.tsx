@@ -118,7 +118,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     }
     void measure(); const interval = window.setInterval(measure, 3000)
     return () => { window.clearInterval(interval); stream.close(); streamRef.current = null }
-  }, [matchId, playerId])
+  }, [matchId])
 
   useEffect(() => { if (!roomId) return; setTimer(90); const interval = window.setInterval(() => setTimer((value) => Math.max(0, value - 1)), 1000); return () => window.clearInterval(interval) }, [roomId])
 
@@ -177,7 +177,7 @@ export function PvpArena({ wsUrl = process.env.NEXT_PUBLIC_PVP_WS_URL ?? 'ws://l
     <div className={`arena-stage ${cameraPulse ? 'camera-pulse' : ''}`} role="application" aria-label="真人算法竞技场">
       <div className="arena-grid" />
       {effects.map((effect) => <div key={effect.id} className={`combat-effect effect-${effect.type}`} style={{ left: `${effect.x / 10}%`, bottom: `${effect.y}px` }}>{effect.type === 'critical' ? <strong>暴击 {effect.text}</strong> : effect.type === 'shield' ? '护盾破碎' : effect.type === 'slash' ? '╱' : effect.type === 'burst' ? '✦' : '✹'}</div>)}
-      {opponent && <div className={`arena-fighter enemy state-${opponent.state ?? 'idle'} phase-${attackPhase}`} style={{ left: `${opponent.x / 10}%`, bottom: `${opponent.y + 32}px`, willChange: 'left, bottom' }}><span className="algorithm-core">{opponent.character === '剑士' ? '⚔' : opponent.character === '术士' ? '◇' : '∇'}</span><b>{opponent.hp}</b></div>}
+      {opponent && <div className={`arena-fighter enemy state-${opponent.state ?? 'idle'} phase-${opponent.attackPhase ?? 'none'}`} style={{ left: `${opponent.x / 10}%`, bottom: `${opponent.y + 32}px`, willChange: 'left, bottom' }}><span className={`fighter-sprite sprite-${opponent.action || 'idle'}`} aria-label="对手角色" /><b>{opponent.hp}</b></div>}
       {mine && <div className={`arena-fighter player state-${mine.state ?? 'idle'} phase-${attackPhase}`} style={{ left: `${mine.x / 10}%`, bottom: `${mine.y + 32}px`, willChange: 'left, bottom' }}><span className={`fighter-sprite sprite-${mine.action || 'idle'}`} aria-label="玩家角色" /><b>{mine.hp}</b></div>}
     </div>
     <div className="arena-hud"><div><span>我方</span><progress value={mine?.hp ?? 100} max="100" /></div><div className="combo">COMBO {mine?.combo ?? 0}</div><div><span>对手</span><progress value={opponent?.hp ?? 100} max="100" /></div></div>
